@@ -1,5 +1,5 @@
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { authenticate, createR2Client } from "../lib/r2.js";
+import { authenticate, createDahonoClient } from "../lib/r2.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -13,12 +13,12 @@ export default async function handler(req, res) {
     const ownsKey = key.startsWith(auth.user.id + "/");
     const isAdmin = auth.profile?.role === "admin";
     if (!ownsKey && !isAdmin) return res.status(403).json({ error: "Tidak memiliki izin menghapus file ini." });
-    await createR2Client().send(new DeleteObjectCommand({
-      Bucket: process.env.R2_BUCKET_NAME,
+    await createDahonoClient().send(new DeleteObjectCommand({
+      Bucket: process.env.DAHONO_S3_BUCKET,
       Key: key
     }));
     return res.status(200).json({ success: true });
   } catch (error) {
-    return res.status(500).json({ error: error.message || "Gagal menghapus objek R2." });
+    return res.status(500).json({ error: error.message || "Gagal menghapus objek Dahono." });
   }
 }
