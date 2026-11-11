@@ -44,3 +44,39 @@
 .video-card[role=button]{cursor:pointer}
 .video-card[role=button]:focus-visible{outline:2px solid var(--pink2);outline-offset:4px}
 @media(max-width:800px){.modal-close{top:10px!important;right:10px!important}.modal{padding-top:58px}}
+
+
+/* Video player: natural aspect ratio, usable native controls and optional zoom */
+.modal-backdrop.player-mode{position:fixed;inset:0;z-index:150;padding:0;display:block;overflow-y:auto;background:rgba(3,3,7,.98);backdrop-filter:blur(14px)}
+.modal-backdrop.player-mode.hidden{display:none!important}
+.modal.player-modal{position:relative;width:100%;max-width:none;min-height:100dvh;max-height:none;margin:0;padding:0;overflow:visible;border:0;border-radius:0;background:#08080c;box-shadow:none}
+.modal.player-modal>.modal-close{display:none!important}
+.player-page{width:min(1180px,100%);min-height:100dvh;margin:0 auto;padding:16px 28px 44px}
+.player-toolbar{min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.player-brand{font:800 12px "Space Grotesk";letter-spacing:1.3px;color:#f7f7fa}
+.player-brand i{font-style:normal;color:#777783;font-weight:500}
+.player-actions{display:flex;align-items:center;gap:8px}
+.player-tool,.player-close{min-height:38px;padding:0 13px;border:1px solid #393944;border-radius:10px;background:#17171f;color:#f5f5f7;font-size:12px;font-weight:700}
+.player-tool[aria-pressed="true"]{border-color:#ed1455;background:#351321;color:#ff9ab7}
+.player-close{width:40px;padding:0;border-radius:50%;font-size:25px;line-height:1}
+.player-title{margin:0 0 14px;font:700 clamp(18px,2.4vw,25px) "Space Grotesk";overflow-wrap:anywhere}
+.modal.player-modal .video-player{display:flex;align-items:center;justify-content:center;width:100%;height:auto;min-height:0;aspect-ratio:auto;margin:0 auto 14px;overflow:hidden;border:1px solid #292933;border-radius:12px;background:#000}
+.modal.player-modal .video-player video{display:block;width:100%;height:auto;max-height:calc(100dvh - 150px);object-fit:contain;background:#000;transform:scale(1);transform-origin:center;transition:transform .2s ease}
+.modal.player-modal .video-player video.video-zoomed{transform:scale(1.25);cursor:zoom-out}
+.player-description{max-width:900px;margin:10px 0 0;color:#a5a5b1;font-size:13px;line-height:1.7}
+.player-hint{margin:9px 0 0;color:#747481;font-size:11px;line-height:1.6}
+.player-error{padding:30px 16px;text-align:center;color:#ff9ab4;font-size:13px}
+.video-player:fullscreen{width:100vw;height:100vh;max-width:none;max-height:none;aspect-ratio:auto;background:#000}
+.video-player:fullscreen video{width:100%;height:100%;max-height:100vh;object-fit:contain}
+@media(max-width:700px){
+ .player-page{padding:10px 12px 28px}
+ .player-toolbar{align-items:center;margin-bottom:12px}
+ .player-brand{font-size:10px;letter-spacing:.8px}
+ .player-actions{gap:5px}
+ .player-tool{min-height:36px;padding:0 9px;font-size:10px}
+ .player-close{width:36px;min-height:36px;font-size:23px}
+ .modal.player-modal .video-player{border-radius:8px}
+ .modal.player-modal .video-player video{max-height:calc(100dvh - 125px)}
+ .player-title{font-size:18px}
+}
+@media(max-width:380px){.player-brand{display:none}.player-toolbar{justify-content:flex-end}}
