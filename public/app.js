@@ -179,7 +179,7 @@ async function adminPanel(){
 }
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
 function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
-document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel()}});
+document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel();if(a.dataset.action==="upload")uploadPanel()}});
 $("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
 $("#pagination").onclick=e=>{const b=e.target.closest("[data-page]");if(!b||b.disabled)return;state.page=Number(b.dataset.page);renderVideos();$("#videoGrid").scrollIntoView({behavior:"smooth",block:"start"})};
 $("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();state.page=1;renderVideos()};
