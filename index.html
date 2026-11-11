@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09090d">
+  <meta name="description" content="ASUPANMEME — tempat menemukan video pilihan dan konten premium.">
+  <title>ASUPANMEME — Watch what you love</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="age-gate" id="ageGate">
+    <div class="age-card">
+      <div class="brand-mark large">A</div>
+      <p class="eyebrow">ASUPANMEME • AGE RESTRICTED</p>
+      <h1>Apakah kamu sudah<br><span>berusia 18 tahun?</span></h1>
+      <p class="muted">Situs ini hanya untuk orang dewasa. Dengan melanjutkan, kamu menyatakan telah berusia minimal 18 tahun dan setuju pada aturan penggunaan.</p>
+      <div class="age-actions"><button class="btn btn-primary" id="ageYes">Ya, saya 18+</button><button class="btn btn-ghost" id="ageNo">Belum 18 tahun</button></div>
+      <small>Konten ilegal, eksploitasi, dan materi tanpa persetujuan tidak diperbolehkan.</small>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#"><span class="brand-mark">A</span><span>ASUPAN<span class="brand-light">MEME</span></span></a>
+      <div class="side-label">MENU UTAMA</div>
+      <nav class="side-nav">
+        <button class="nav-link active" data-view="home"><span>⌂</span> Beranda</button>
+        <button class="nav-link" data-view="popular"><span>✦</span> Populer</button>
+        <button class="nav-link" data-view="latest"><span>◷</span> Video terbaru</button>
+        <button class="nav-link" data-view="exclusive"><span>♛</span> Eksklusif <i class="tiny-pro">PRO</i></button>
+      </nav>
+      <div class="side-label second-label">AKUN SAYA</div>
+      <nav class="side-nav">
+        <button class="nav-link" data-view="saved"><span>♡</span> Video tersimpan</button>
+        <button class="nav-link" data-action="membership"><span>♢</span> Membership</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="pro-card"><div class="pro-icon">✦</div><strong>Unlock lebih banyak</strong><p>Nikmati koleksi eksklusif dengan membership.</p><button class="btn btn-primary btn-small" data-action="membership">Lihat paket</button></div>
+        <button class="nav-link" data-action="account"><span>◉</span> Akun & login</button>
+        <p class="side-foot">© <span id="year"></span> ASUPANMEME</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn mobile-menu" id="menuToggle" aria-label="Buka menu">☰</button>
+        <a class="mobile-brand" href="#"><span class="brand-mark">A</span> ASUPANMEME</a>
+        <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="Cari video, kategori..." autocomplete="off"><kbd>/</kbd></label>
+        <div class="top-actions"><button class="btn btn-outline btn-small" data-action="membership">✦ Upgrade</button><button class="avatar" id="accountButton" data-action="account">?</button></div>
+      </header>
+
+      <section class="content">
+        <section class="hero">
+          <div class="hero-copy"><span class="eyebrow"><span class="live-dot"></span> YOUR DAILY ENTERTAINMENT</span><h1>Temukan video<br>yang <span>kamu suka.</span></h1><p>Jelajahi koleksi pilihan, simpan favoritmu, dan buka akses premium kapan saja.</p><div class="hero-actions"><button class="btn btn-primary" data-view="latest">Jelajahi video <span>↗</span></button><button class="btn btn-glass" data-action="membership">Lihat membership</button></div><div class="hero-meta"><span>✦ Kurasi pilihan</span><span>◈ Akses premium</span><span>⌁ Pengalaman nyaman</span></div></div>
+          <div class="hero-art"><div class="art-glow"></div><div class="art-window"><div class="art-top"><span>ASUPANMEME / FEATURED</span><span class="art-live">● ONLINE</span></div><div class="art-play">▶</div><div class="art-bottom"><b>YOUR NEXT<br>FAVORITE VIDEO</b><span>01 — DISCOVER</span></div></div><div class="floating-tag">✦ PREMIUM EXPERIENCE</div></div>
+        </section>
+
+        <div class="section-heading"><div><p class="eyebrow">HANDPICKED FOR YOU</p><h2>Video populer</h2></div><button class="text-link" data-view="popular">Lihat semua <span>→</span></button></div>
+        <div class="video-grid" id="popularGrid"><div class="loading-card">Memuat video...</div></div>
+
+        <div class="section-heading section-spaced"><div><p class="eyebrow">FRESH FROM THE LIBRARY</p><h2>Semua video</h2><p class="muted section-subtitle" id="videoCount">Temukan koleksi terbaru kami.</p></div></div>
+        <div class="filter-row"><div class="filter-tabs"><button class="filter-tab active" data-filter="all">Semua</button><button class="filter-tab" data-filter="free">Gratis</button><button class="filter-tab" data-filter="exclusive">Eksklusif <span>✦</span></button></div><select id="sortSelect" class="sort-select" aria-label="Urutkan video"><option value="newest">Terbaru</option><option value="popular">Paling populer</option><option value="az">Nama A–Z</option></select></div>
+        <div class="video-grid" id="videoGrid"><div class="loading-card">Menyiapkan koleksi...</div></div>
+        <div class="empty-state hidden" id="emptyState"><div>⌕</div><h3>Belum ada video ditemukan</h3><p>Coba kata kunci atau filter yang berbeda.</p></div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+      <footer class="footer"><span>© <span id="footerYear"></span> ASUPANMEME</span><span>18+ • Tonton dengan bijak • Konten legal dan berizin</span><button data-action="membership">Membership</button></footer>
+    </main>
+  </div>
+
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <section class="modal" id="mainModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><button class="modal-close" id="modalClose" aria-label="Tutup">×</button><div id="modalContent"></div></section>
+  </div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+</body>
+</html>
