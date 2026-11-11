@@ -63,9 +63,9 @@ function renderVideos(){
   const pages=Array.from({length:totalPages},(_,i)=>i+1);
   pagination.innerHTML='<button class="page-btn" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>‹ Sebelumnya</button>'+pages.map(n=>'<button class="page-btn '+(n===state.page?'active':'')+'" data-page="'+n+'" aria-label="Halaman '+n+'" '+(n===state.page?'aria-current="page"':'')+'>'+n+'</button>').join("")+'<button class="page-btn" data-page="'+(state.page+1)+'" '+(state.page===totalPages?'disabled':'')+'>Berikutnya ›</button>';
  }else pagination.innerHTML="";
- $(".video-card").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-save]"))return;openVideo(el.dataset.video)});
- $("[data-save]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.save;state.saved.has(id)?state.saved.delete(id):state.saved.add(id);localStorage.setItem("asm_saved",JSON.stringify([...state.saved]));renderVideos()});
- $("[data-title-toggle]").forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const title=b.parentElement.querySelector(".video-title");const expanded=b.getAttribute("aria-expanded")==="true";title.classList.toggle("is-clamped",expanded);b.setAttribute("aria-expanded",String(!expanded));b.textContent=expanded?"Baca selengkapnya":"Lebih sedikit"});
+ $$(".video-card").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-save]"))return;openVideo(el.dataset.video)});
+ $$("[data-save]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.save;state.saved.has(id)?state.saved.delete(id):state.saved.add(id);localStorage.setItem("asm_saved",JSON.stringify([...state.saved]));renderVideos()});
+ $$("[data-title-toggle]").forEach(b=>b.onclick=e=>{e.preventDefault();e.stopPropagation();const title=b.parentElement.querySelector(".video-title");const expanded=b.getAttribute("aria-expanded")==="true";title.classList.toggle("is-clamped",expanded);b.setAttribute("aria-expanded",String(!expanded));b.textContent=expanded?"Baca selengkapnya":"Lebih sedikit"});
 }
 function playerRecommendations(currentId){
  const related=state.videos.filter(x=>String(x.id)!==String(currentId)).slice(0,8);
@@ -82,7 +82,7 @@ async function openVideo(id){
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
  $("#playerClose").onclick=closeModal;
- $("#mainModal [data-recommend]").forEach(b=>b.onclick=()=>openVideo(b.dataset.recommend));
+ $$("#mainModal [data-recommend]").forEach(b=>b.onclick=()=>openVideo(b.dataset.recommend));
  if(locked){
   $("#checkPremiumAccess").onclick=async()=>{if(!state.user){openAccount();return}const button=$("#checkPremiumAccess");button.disabled=true;button.textContent="Memeriksa...";await loadProfile();if(hasPremium()){toast("Membership aktif. Video siap diputar.");openVideo(v.id)}else{button.disabled=false;button.textContent="↻ Periksa akses";toast("Akses premium belum aktif. Periksa status membership atau hubungi admin.")}};
   $("#unlockNow").onclick=membershipPanel;
@@ -200,7 +200,7 @@ async function adminPanel(){
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
 function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel();if(a.dataset.action==="upload")uploadPanel()}});
-$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
+$$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
 $("#pagination").onclick=e=>{const b=e.target.closest("[data-page]");if(!b||b.disabled)return;state.page=Number(b.dataset.page);renderVideos();$("#videoGrid").scrollIntoView({behavior:"smooth",block:"start"})};
 $("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();state.page=1;renderVideos()};
 $("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));state.page=1;renderVideos()};
