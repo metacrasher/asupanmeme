@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await client.storage
       .from("media-videos")
-      .createSignedUrl(video.storage_path, 90);
+      .createSignedUrl(video.storage_path, 3600);
 
     if (error) throw error;
     return res.status(200).json({ url: data.signedUrl });
