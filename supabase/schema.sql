@@ -89,7 +89,7 @@ create policy "User submits own payment" on public.payment_submissions for inser
 -- Ignore client-supplied prices and names; always copy current plan values from the database.
 create or replace function public.set_payment_plan_values()
 returns trigger language plpgsql security definer set search_path=public
-as $
+as $$
  declare p public.subscription_plans%rowtype;
 begin
  select * into p from public.subscription_plans where id=new.plan_id and active=true;
@@ -97,7 +97,7 @@ begin
  new.plan_name := p.name;
  new.amount := p.price;
  return new;
-end $;
+end $$;
 drop trigger if exists before_payment_submission_insert on public.payment_submissions;
 create trigger before_payment_submission_insert before insert on public.payment_submissions
 for each row execute function public.set_payment_plan_values();
