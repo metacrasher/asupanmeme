@@ -137,3 +137,41 @@ using(bucket_id='payment-proofs' and ((storage.foldername(name))[1]=auth.uid()::
 -- IMPORTANT: after creating your account, promote your own user ID to admin from SQL Editor:
 -- update public.profiles set role='admin' where id=(select id from auth.users where email='YOUR_EMAIL');
 -- Never expose the Supabase service_role key in config.js or browser code.
+
+-- Telegram admin bot and private video media.
+alter table public.videos add column if not exists storage_path text;
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+values ('media-videos','media-videos',false,524288000,array['video/mp4','video/webm','video/quicktime','video/x-matroska'])
+on conflict(id) do update set public=false;
+create table if not exists public.telegram_bot_sessions (
+ chat_id bigint primary key, step text not null, data jsonb not null default '{}'::jsonb,
+ updated_at timestamptz not null default now()
+);
+alter table public.telegram_bot_sessions enable row level security;
+create or replace function public.telegram_grant_premium(target_email text, days_to_grant integer)
+returns void language plpgsql security definer set search_path=public,auth
+as $$
+declare target_id uuid;
+begin
+ if coalesce(auth.role(),'') <> 'service_role' then raise exception 'Service role required'; end if;
+ if days_to_grant < 1 or days_to_grant > 3650 then raise exception 'Invalid duration'; end if;
+ select id into target_id from auth.users where lower(email)=lower(target_email) limit 1;
+ if target_id is null then raise exception 'User not found'; end if;
+ update public.profiles set subscription_status='active',
+ subscription_expires_at=greatest(coalesce(subscription_expires_at,now()),now()) + make_interval(days=>days_to_grant)
+ where id=target_id;
+ if not found then raise exception 'Profile not found'; end if;
+end $$;
+revoke all on function public.telegram_grant_premium(text,integer) from public,anon,authenticated;
+grant execute on function public.telegram_grant_premium(text,integer) to service_role;
+create or replace function public.telegram_lookup_user(target_email text)
+returns table(id uuid,email text,display_name text,role text,subscription_status text,subscription_expires_at timestamptz)
+language plpgsql security definer set search_path=public,auth
+as $$
+begin
+ if coalesce(auth.role(),'') <> 'service_role' then raise exception 'Service role required'; end if;
+ return query select p.id,u.email::text,p.display_name,p.role,p.subscription_status,p.subscription_expires_at
+ from auth.users u join public.profiles p on p.id=u.id where lower(u.email)=lower(target_email);
+end $$;
+revoke all on function public.telegram_lookup_user(text) from public,anon,authenticated;
+grant execute on function public.telegram_lookup_user(text) to service_role;
