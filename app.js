@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $ = (s,root=document) => root.querySelector(s);
-const $ = (s,root=document) => [...root.querySelectorAll(s)];
+const $$ = (s,root=document) => [...root.querySelectorAll(s)];
 
 // Age gate handler is registered immediately so unrelated initialization errors
 // cannot leave the 18+ buttons without click handlers.
