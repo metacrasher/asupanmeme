@@ -263,25 +263,45 @@ async function uploadPanel(){
   if(!video||!allowedTypes.includes(video.type)||video.size>500*1024*1024){toast("Pilih video MP4, WEBM, atau MOV maksimal 500 MB.");return}
   if(thumb?.size>5*1024*1024){toast("Thumbnail maksimal 5 MB.");return}
   const btn=form.querySelector("button[type=submit]");
-  btn.disabled=true;btn.textContent="Menyiapkan upload R2...";
+  btn.disabled=true;btn.textContent="Menyiapkan upload multipart...";
   let r2Key=null;
+  let multipartUploadId=null;
+  let multipartCompleted=false;
   let thumbnailPath=null;
+  let uploadToken=null;
+  const multipartRequest=async(payload)=>{
+   const response=await fetch("/api/r2-multipart",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify(payload)});
+   const result=await response.json().catch(()=>({error:"Respons server tidak valid."}));
+   if(!response.ok)throw new Error(result.error||"Permintaan multipart upload gagal (HTTP "+response.status+").");
+   return result;
+  };
   try{
    const sessionResult=await db.auth.getSession();
-   const token=sessionResult.data?.session?.access_token;
-   if(!token)throw new Error("Sesi login berakhir. Silakan login kembali.");
-   const ext=(video.name.split(".").pop()||"mp4").toLowerCase();
-   const signResponse=await fetch("/api/r2-upload-url",{
-    method:"POST",
-    headers:{"content-type":"application/json",Authorization:"Bearer "+token},
-    body:JSON.stringify({filename:video.name,content_type:video.type,size:video.size})
-   });
-   const signed=await signResponse.json();
-   if(!signResponse.ok)throw new Error(signed.error||"Tidak dapat menyiapkan upload Cloudflare R2.");
-   r2Key=signed.key;
-   btn.textContent="Mengunggah video ke Cloudflare R2...";
-   const putResponse=await fetch(signed.upload_url,{method:"PUT",headers:{"Content-Type":video.type},body:video});
-   if(!putResponse.ok)throw new Error("Upload ke R2 gagal (HTTP "+putResponse.status+"). Periksa CORS bucket Cloudflare R2.");
+   uploadToken=sessionResult.data?.session?.access_token;
+   if(!uploadToken)throw new Error("Sesi login berakhir. Silakan login kembali.");
+   const created=await multipartRequest({action:"create",filename:video.name,content_type:video.type,size:video.size});
+   r2Key=created.key;
+   multipartUploadId=created.uploadId;
+   const partSize=10*1024*1024;
+   const completedParts=[];
+   for(let index=0;index<created.parts.length;index++){
+    const part=created.parts[index];
+    const from=index*partSize;
+    const chunk=video.slice(from,Math.min(from+partSize,video.size));
+    btn.textContent="Mengunggah bagian "+(index+1)+"/"+created.parts.length+"...";
+    const partResponse=await fetch(part.url,{method:"PUT",body:chunk});
+    if(!partResponse.ok){
+     const detail=await partResponse.text().catch(()=>"");
+     throw new Error("Bagian "+(index+1)+" gagal diunggah (HTTP "+partResponse.status+"). "+detail.slice(0,220));
+    }
+    const etag=partResponse.headers.get("ETag");
+    if(!etag)throw new Error("Dahono tidak mengirim header ETag untuk bagian "+(index+1)+". Bucket perlu mengizinkan expose header ETag pada CORS.");
+    completedParts.push({PartNumber:part.partNumber,ETag:etag});
+   }
+   btn.textContent="Menyelesaikan upload...";
+   await multipartRequest({action:"complete",key:r2Key,uploadId:multipartUploadId,parts:completedParts});
+   multipartCompleted=true;
+   multipartUploadId=null;
    let thumbnail_url=null;
    if(thumb?.size){
     const tExt=(thumb.name.split(".").pop()||"jpg").toLowerCase();
@@ -302,15 +322,18 @@ async function uploadPanel(){
     uploader_id:state.user.id
    });
    if(dbErr)throw new Error("Video sudah terunggah, tetapi data katalog gagal disimpan: "+dbErr.message);
-   closeModal();toast("Video berhasil diunggah ke Cloudflare R2 dan ditayangkan.");await loadVideos();
+   closeModal();toast("Video berhasil diunggah ke Dahono dan ditayangkan.");await loadVideos();
   }catch(error){
-   if(r2Key){
-    try{const session=await db.auth.getSession();await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+(session.data?.session?.access_token||"")},body:JSON.stringify({key:r2Key})})}catch(_){}
+   if(multipartUploadId&&r2Key&&uploadToken){
+    try{await multipartRequest({action:"abort",key:r2Key,uploadId:multipartUploadId})}catch(abortError){console.error("ASUPANMEME multipart abort:",abortError)}
+   }
+   if(r2Key&&multipartCompleted){
+    try{await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify({key:r2Key})})}catch(_){}
    }
    if(thumbnailPath)await db.storage.from("video-thumbnails").remove([thumbnailPath]).catch(()=>{});
    btn.disabled=false;btn.textContent="Kirim video";
-   toast("Upload gagal: "+(error?.message||"Periksa konfigurasi Cloudflare R2."));
-   console.error("ASUPANMEME R2 upload:",error);
+   toast("Upload gagal: "+(error?.message||"Periksa konfigurasi Dahono dan CORS bucket."));
+   console.error("ASUPANMEME Dahono multipart upload:",error);
   }
  };
 }
