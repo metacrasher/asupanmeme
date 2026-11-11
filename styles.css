@@ -80,3 +80,12 @@
  .player-title{font-size:18px}
 }
 @media(max-width:380px){.player-brand{display:none}.player-toolbar{justify-content:flex-end}}
+
+
+/* Video player controls: keep zoom visible and controls usable on narrow screens */
+.modal.player-modal .video-player.video-zoom-active{overflow:visible}
+@media(max-width:700px){
+ .player-toolbar{flex-wrap:wrap}
+ .player-brand{display:none}
+ .player-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+}
