@@ -1,7 +1,25 @@
 (() => {
 "use strict";
 const $ = (s,root=document) => root.querySelector(s);
-const $$ = (s,root=document) => [...root.querySelectorAll(s)];
+const $ = (s,root=document) => [...root.querySelectorAll(s)];
+
+// Age gate handler is registered immediately so unrelated initialization errors
+// cannot leave the 18+ buttons without click handlers.
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("#ageYes, #ageNo");
+  if (!button) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  if (button.id === "ageYes") {
+    try { sessionStorage.setItem("asm_age_confirmed", "yes"); } catch (_) {}
+    const gate = document.getElementById("ageGate");
+    if (gate) gate.classList.add("hidden");
+    return;
+  }
+
+  document.body.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px"><div><h1>Akses tidak tersedia</h1><p>Website ini hanya dapat diakses oleh pengunjung berusia 18 tahun ke atas.</p></div></main>';
+}, true);
 const cfg = window.APP_CONFIG || {};
 const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
@@ -80,7 +98,7 @@ $("#modalClose").onclick=closeModal;
 $("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")closeModal()};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeSidebar()}});
 
-$("#ageYes").onclick=()=>{sessionStorage.setItem("asm_age_confirmed","yes");$("#ageGate").classList.add("hidden")};$("#ageNo").onclick=()=>{document.body.innerHTML='<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px"><div><h1>Akses tidak tersedia</h1><p>Website ini hanya dapat diakses oleh pengunjung berusia 18 tahun ke atas.</p></div></main>'};
+// Age-gate clicks are handled by the early delegated listener above.
 if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classList.add("hidden");
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
 async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
