@@ -65,13 +65,21 @@ async function adminPanel(){
  $$("[data-reject]").forEach(b=>b.onclick=()=>reviewPayment(b.dataset.reject,false))
 }
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
-function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));$("#sidebar").classList.remove("open");renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
+function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel()}});
 $$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
 $("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();renderVideos()};
 $("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));renderVideos()};
-$("#menuToggle").onclick=()=>$("#sidebar").classList.toggle("open");
-$("#modalClose").onclick=closeModal;$("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")closeModal()};
+const sidebar=$("#sidebar"),sidebarOverlay=$("#sidebarOverlay");
+function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
+function toggleSidebar(){const opening=!sidebar.classList.contains("open");sidebar.classList.toggle("open",opening);sidebarOverlay.classList.toggle("visible",opening);document.body.classList.toggle("sidebar-open",opening)}
+$("#menuToggle").onclick=toggleSidebar;
+$("#sidebarClose").onclick=closeSidebar;
+sidebarOverlay.onclick=closeSidebar;
+$("#modalClose").onclick=closeModal;
+$("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")closeModal()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeSidebar()}});
+
 $("#ageYes").onclick=()=>{sessionStorage.setItem("asm_age_confirmed","yes");$("#ageGate").classList.add("hidden")};$("#ageNo").onclick=()=>{document.body.innerHTML='<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px"><div><h1>Akses tidak tersedia</h1><p>Website ini hanya dapat diakses oleh pengunjung berusia 18 tahun ke atas.</p></div></main>'};
 if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classList.add("hidden");
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
