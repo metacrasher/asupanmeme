@@ -1,7 +1,22 @@
 (() => {
 "use strict";
 const $ = (s,root=document) => root.querySelector(s);
-const $$ = (s,root=document) => [...root.querySelectorAll(s)];
+const $ = (s,root=document) => [...root.querySelectorAll(s)];
+ // Keep the age gate interactive even if a later app initializer fails.
+ document.addEventListener("click", event => {
+   const yes = event.target.closest("#ageYes");
+   const no = event.target.closest("#ageNo");
+   if (!yes && !no) return;
+   event.preventDefault();
+   event.stopImmediatePropagation();
+   const gate = document.getElementById("ageGate");
+   if (yes) {
+     try { sessionStorage.setItem("asm_age_confirmed", "yes"); } catch (_) {}
+     gate?.classList.add("hidden");
+   } else {
+     document.body.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px;background:#09090d;color:#fff;font-family:Arial,sans-serif"><div><h1>Akses tidak tersedia</h1><p>Website ini hanya dapat diakses oleh pengunjung berusia 18 tahun ke atas.</p></div></main>';
+   }
+ }, true);
 const cfg = window.APP_CONFIG || {};
 const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
@@ -199,7 +214,7 @@ $("#modalClose").onclick=closeModal;
 $("#modalBackdrop").onclick=e=>{if(e.target.id==="modalBackdrop")closeModal()};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeSidebar()}});
 
-$("#ageYes").onclick=()=>{sessionStorage.setItem("asm_age_confirmed","yes");$("#ageGate").classList.add("hidden")};$("#ageNo").onclick=()=>{document.body.innerHTML='<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:30px"><div><h1>Akses tidak tersedia</h1><p>Website ini hanya dapat diakses oleh pengunjung berusia 18 tahun ke atas.</p></div></main>'};
+
 if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classList.add("hidden");
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
 async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
