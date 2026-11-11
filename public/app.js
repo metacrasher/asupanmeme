@@ -77,7 +77,7 @@ async function openVideo(id){
  const locked=v.is_exclusive&&!hasPremium();
  const recommendations=playerRecommendations(v.id);
  const lockMarkup='<div class="premium-lock-card"><div class="premium-lock-icon">✦</div><span class="premium-lock-kicker">ASUPANMEME PREMIUM</span><h2>Akses khusus anggota</h2><p>Video ini termasuk konten eksklusif. Aktifkan membership untuk membuka dan menonton video ini selama masa aktif paket.</p><div class="premium-lock-actions"><button class="btn btn-primary" id="checkPremiumAccess" type="button">↻ Periksa akses</button><button class="btn btn-outline" id="unlockNow" type="button">Lihat paket premium</button>'+(!state.user?'<button class="btn btn-ghost" id="premiumLogin" type="button">Masuk ke akun</button>':"")+'</div><small>Sudah berlangganan? Tekan “Periksa akses” setelah login atau setelah membership diaktifkan admin.</small></div>';
- const playerMarkup='<div class="player-page"><div class="player-toolbar"><span class="player-brand">ASUPANMEME <i> / PLAYER</i></span><button class="player-close" id="playerClose" type="button" aria-label="Tutup pemutar">×</button></div><div class="video-player'+(locked?' premium-locked':'')+'" id="videoPlayer">'+(locked?lockMarkup:'<span class="muted">Menyiapkan video...</span>')+'</div><div class="player-details"><div><h2 id="modalTitle">'+esc(v.title)+'</h2><p>'+Number(v.views||0).toLocaleString("id-ID")+' views · '+new Date(v.created_at).toLocaleDateString("id-ID")+'</p></div><span class="player-access">'+(v.is_exclusive?'✦ EKSKLUSIF':'GRATIS')+'</span></div>'+(v.description?'<p class="player-description">'+esc(v.description)+'</p>':'')+recommendations+'</div>';
+ const playerMarkup='<div class="player-page"><div class="player-toolbar"><span class="player-brand">ASUPANMEME <i> / PLAYER</i></span><button class="player-close" id="playerClose" type="button" aria-label="Tutup pemutar">×</button></div><div class="video-player'+(locked?' premium-locked':'')+'" id="videoPlayer">'+(locked?lockMarkup:'<span class="muted">Menyiapkan video...</span>')+'</div><div class="player-details"><div><h2 id="modalTitle">'+esc(v.title)+'</h2><p data-view-count>'+Number(v.views||0).toLocaleString("id-ID")+' views · '+new Date(v.created_at).toLocaleDateString("id-ID")+'</p></div><span class="player-access">'+(v.is_exclusive?'✦ EKSKLUSIF':'GRATIS')+'</span></div>'+(v.description?'<p class="player-description">'+esc(v.description)+'</p>':'')+recommendations+'</div>';
  modal(playerMarkup);
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
@@ -102,6 +102,27 @@ async function openVideo(id){
   player.innerHTML='<video controls autoplay playsinline preload="metadata" src="'+esc(v.video_url)+'"></video>';
  }else{
   player.innerHTML='<div class="player-error">Video belum memiliki sumber pemutaran.</div>';
+ }
+ const videoElement=player.querySelector("video");
+ if(videoElement&&db&&!String(v.id).startsWith("demo")){
+  let counted=false;
+  videoElement.addEventListener("play",async()=>{
+   if(counted)return;
+   counted=true;
+   const {data,error}=await db.rpc("increment_video_view",{target_video_id:v.id});
+   if(error){
+    counted=false;
+    console.error("ASUPANMEME view counter:",error);
+    return;
+   }
+   const updatedViews=Number(data);
+   if(Number.isFinite(updatedViews)){
+    v.views=updatedViews;
+    const label=$("#mainModal [data-view-count]");
+    if(label)label.textContent=updatedViews.toLocaleString("id-ID")+" views · "+new Date(v.created_at).toLocaleDateString("id-ID");
+    renderVideos();
+   }
+  });
  }
 }
 async function membershipPanel(){if(!state.user){openAccount();toast("Login terlebih dahulu untuk berlangganan.");return}let plans=[{id:"weekly",name:"Premium 7 Hari",price:5000,duration_days:7},{id:"lifetime",name:"Premium Permanen",price:20000,duration_days:0}];if(db){const {data}=await db.from("subscription_plans").select("*").eq("active",true).order("price");if(data?.length)plans=data}let payment={};if(db){const {data}=await db.from("site_settings").select("key,value").in("key",["payment_instructions","payment_account"]);(data||[]).forEach(x=>payment[x.key]=x.value)}modal(`<p class="eyebrow">ASUPANMEME MEMBERSHIP</p><h2 id="modalTitle">Pilih akses premium</h2><p>Nikmati video eksklusif setelah pembayaran diverifikasi admin. Premium 7 hari berakhir otomatis setelah masa aktif habis; paket permanen tidak kedaluwarsa.</p><div class="plans">${plans.map(p=>'<div class="plan '+(p.id==="quarterly"?"featured":"")+'"><h3>'+esc(p.name)+'</h3><strong>'+money(p.price)+'</strong><p>'+(Number(p.duration_days)===0?"Akses permanen tanpa kedaluwarsa":'Akses selama '+(p.duration_days||7)+' hari')+'</p><button class="btn btn-primary" data-plan="'+esc(p.id)+'">Pilih paket</button></div>').join("")}</div><section class="qris-payment"><h3>Pembayaran QRIS</h3><p>Scan QRIS di bawah melalui aplikasi mobile banking atau e-wallet. Pastikan nominal sesuai paket yang dipilih.</p><img src="/qris.png" alt="QRIS pembayaran ASUPANMEME" loading="lazy"><small>Nama merchant pada QRIS: FAD STORE - GAME. Periksa nama merchant sebelum membayar.</small></section><div class="field"><label>Instruksi pembayaran dari admin</label><textarea readonly rows="3">${esc(payment.payment_instructions||"Admin belum mengatur instruksi pembayaran. Silakan hubungi admin situs.")}${payment.payment_account?"\n"+payment.payment_account:""}</textarea></div><p class="muted">Setelah transfer, unggah bukti pembayaran di formulir berikutnya. Jangan unggah PIN, password, atau data kartu.</p>`);$$("[data-plan]").forEach(b=>b.onclick=()=>paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan)))}
