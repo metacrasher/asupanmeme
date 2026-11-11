@@ -22,6 +22,11 @@ using(bucket_id='payment-qris' and name like 'admin/%' and public.is_admin());
 insert into public.site_settings(key,value) values('qris_image_url','')
 on conflict(key) do nothing;
 
+-- Public can fetch the QRIS image. Only admins can upload, replace or delete it.
+drop policy if exists "Public can view QRIS images" on storage.objects;
+create policy "Public can view QRIS images" on storage.objects for select to anon, authenticated
+using (bucket_id='payment-qris');
+
 drop policy if exists "Admin sees public settings" on public.site_settings;
 create policy "Admin sees public settings" on public.site_settings for select
 using(key in ('payment_instructions','payment_account','qris_image_url') or public.is_admin());
@@ -35,20 +40,12 @@ using(user_id=auth.uid() or public.is_admin());
 create index if not exists payment_submissions_user_created_idx
 on public.payment_submissions(user_id,created_at desc);
 
--- Guest and signed-in users can read published free videos. Premium and admin
--- visibility stays controlled by the existing membership/admin checks.
+-- Public catalog metadata is visible to guests, including exclusive titles and
+-- thumbnails. Private video playback remains protected by media-videos Storage RLS.
 drop policy if exists "Published free videos readable" on public.videos;
-create policy "Published free videos readable" on public.videos for select
-using(
- published=true and (
-  not is_exclusive
-  or (auth.uid() is not null and exists(
-    select 1 from public.profiles p
-    where p.id=auth.uid() and p.subscription_status='active'
-      and (p.subscription_expires_at is null or p.subscription_expires_at>now())
-  ))
- ) or public.is_admin()
-);
+drop policy if exists "Published video catalog visible" on public.videos;
+create policy "Published video catalog visible" on public.videos for select to anon, authenticated
+using (published = true or public.is_admin());
 
 -- Ensure administrators retain video-management access even if schema.sql stopped early.
 drop policy if exists "Admins manage videos" on public.videos;
