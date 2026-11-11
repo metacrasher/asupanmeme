@@ -2,3 +2,17 @@
 .upload-promo{margin:16px 0;padding:15px 16px;border:1px solid #573047;border-radius:12px;background:linear-gradient(135deg,#24131d,#17151d)}.upload-promo strong{display:block;color:#fff;font-size:13px}.upload-promo p{margin:7px 0;color:#d0c2cb;font-size:12px;line-height:1.65}.upload-promo small{display:block;color:#a99aa4;font-size:10px;line-height:1.55}
 
 .qris-payment{margin:18px 0;padding:16px;border:1px solid var(--border,#30303a);border-radius:14px;background:var(--card,#111)}.qris-payment h3{margin:0 0 7px;font-size:16px}.qris-payment p,.qris-payment small{display:block;color:var(--muted,#aaa);font-size:12px;line-height:1.6}.qris-payment img{display:block;width:min(100%,360px);height:auto;object-fit:contain;margin:14px auto;border-radius:8px;background:#fff}.qris-payment small{text-align:center}
+
+/* Easier mobile navigation and slide dismissal */
+.sidebar-close{display:none}
+.sidebar-overlay{display:none}
+@media(max-width:800px){
+ .sidebar{padding-top:76px}
+ .sidebar-close{display:grid;place-items:center;position:absolute;top:18px;right:16px;width:40px;height:40px;border:1px solid #393541;border-radius:11px;background:#211e27;color:#fff;font-size:27px;line-height:1;z-index:2}
+ .sidebar-overlay.visible{display:block;position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(2px);z-index:19}
+ .sidebar{z-index:20}
+ body.sidebar-open{overflow:hidden}
+ .modal-backdrop{padding:10px;align-items:center}
+ .modal{max-height:calc(100dvh - 20px);overflow-y:auto;overscroll-behavior:contain;padding-top:58px}
+ .modal-close{position:sticky;float:right;top:-45px;margin-top:-42px;margin-right:-10px;z-index:5;width:38px;height:38px;font-size:26px;background:#34313d;color:#fff;box-shadow:0 3px 12px #0008}
+}
