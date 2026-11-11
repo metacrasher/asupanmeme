@@ -20,7 +20,7 @@ function r2Client() {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!url || !anon) return res.status(500).json({ error: "Playback configuration is missing." });
-  const token = (req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   try {
     const client = createClient(url, anon, {
       auth: { persistSession: false, autoRefreshToken: false },
