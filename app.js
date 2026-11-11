@@ -213,7 +213,7 @@ async function openVideo(id){
  }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<div class="player-error">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</div>';console.error("ASUPANMEME playback:",error)}
 }
 async function membershipPanel(){
- if(!state.user){openAccount();toast("Login terlebih dahulu untuk berlangganan.");return}
+ // Paket dan harga boleh dilihat publik; login baru diwajibkan saat memilih paket.
  let plans=[{id:"weekly",name:"Premium 7 Hari",price:5000,duration_days:7},{id:"lifetime",name:"Premium Permanen",price:20000,duration_days:0}],payment={};
  if(db){
   const [{data:planData,error:planError},{data:settingsData,error:settingsError}]=await Promise.all([
@@ -224,7 +224,7 @@ async function membershipPanel(){
  }
  modal(`<p class="eyebrow">ASUPANMEME MEMBERSHIP</p><h2 id="modalTitle">Pilih akses premium</h2><p>Nikmati video eksklusif setelah pembayaran diverifikasi admin. Premium 7 hari berakhir otomatis setelah masa aktif habis; paket permanen tidak kedaluwarsa.</p><div class="plans">${plans.map(p=>'<div class="plan '+(p.id==="quarterly"?"featured":"")+'"><h3>'+esc(p.name)+'</h3><strong>'+money(p.price)+'</strong><p>'+(Number(p.duration_days)===0?"Akses permanen tanpa kedaluwarsa":'Akses selama '+(p.duration_days||7)+' hari')+'</p><button class="btn btn-primary" data-plan="'+esc(p.id)+'">Pilih paket</button></div>').join("")}</div><section class="qris-payment"><h3>Pembayaran QRIS</h3><p>Scan QRIS melalui aplikasi mobile banking atau e-wallet. Pastikan nominal sesuai paket yang dipilih.</p>${payment.qris_image_url?'<img id="qrisImage" src="'+esc(payment.qris_image_url)+'" alt="QRIS pembayaran ASUPANMEME" loading="lazy">':'<div class="qris-missing">QRIS belum diunggah oleh admin. Silakan hubungi admin sebelum melakukan pembayaran.</div>'}<small>Pastikan nama merchant dan nominal sesuai sebelum menyelesaikan pembayaran.</small></section><div class="field"><label>Instruksi pembayaran dari admin</label><textarea readonly rows="3">${esc(payment.payment_instructions||"Admin belum mengatur instruksi pembayaran. Silakan hubungi admin situs.")}${payment.payment_account?"\n"+payment.payment_account:""}</textarea></div><p class="muted">Setelah transfer, pilih paket lalu unggah bukti pembayaran. Status akan tampil di akun sampai admin memverifikasi.</p>`);
  if($("#qrisImage"))$("#qrisImage").addEventListener("error",()=>{$("#qrisImage").outerHTML='<div class="qris-missing">Gambar QRIS tidak dapat dimuat. Hubungi admin untuk mendapatkan QRIS terbaru.</div>'});
- $$("[data-plan]").forEach(b=>b.onclick=()=>paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan)));
+ $("[data-plan]").forEach(b=>b.onclick=()=>{if(!state.user){openAccount();toast("Login atau daftar terlebih dahulu untuk melanjutkan pembelian membership.");return}paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan))});
 }
 function paymentPanel(plan){
  if(!plan)return;
