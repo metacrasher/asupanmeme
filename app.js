@@ -48,7 +48,7 @@ const cfg = window.APP_CONFIG || {};
 const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
-const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,search:""};
+const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
@@ -93,6 +93,23 @@ function card(v){
  const locked=v.is_exclusive&&!hasPremium();
  return `<article class="video-card" data-video="${esc(v.id)}" tabindex="0" role="button" aria-label="Buka video ${esc(v.title)}"><div class="thumb">${v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'<div class="thumb-placeholder">A.</div>'}${v.is_exclusive?'<span class="exclusive-tag">✦ EKSKLUSIF</span>':""}<span class="duration">${esc(v.duration||"VIDEO")}</span><button type="button" class="save-btn" data-save="${esc(v.id)}" aria-label="Simpan video">${state.saved.has(v.id)?"♥":"♡"}</button>${locked?'<span class="exclusive-tag" style="top:auto;bottom:9px">🔒 MEMBER</span>':""}</div><div class="video-info"><h3>${esc(v.title)}</h3><p>${Number(v.views||0).toLocaleString("id-ID")} views · ${new Date(v.created_at).toLocaleDateString("id-ID")}</p></div></article>`;
 }
+
+function paginationMarkup(total,page,size,attr){
+ const pages=Math.ceil(total/size);
+ if(pages<=1)return "";
+ const nums=Array.from(new Set([1,pages,page-1,page,page+1].filter(n=>n>=1&&n<=pages))).sort((x,y)=>x-y);
+ let out="<nav class=\"pagination-controls\" aria-label=\"Navigasi halaman\">";
+ out+="<button class=\"page-btn page-arrow\" type=\"button\" data-"+attr+"=\""+Math.max(1,page-1)+"\" "+(page===1?"disabled":"")+" aria-label=\"Sebelumnya\">‹</button>";
+ let last=0;
+ nums.forEach(n=>{
+  if(last&&n-last>1)out+="<span class=\"page-ellipsis\">…</span>";
+  out+="<button class=\"page-btn "+(n===page?"active":"")+"\" type=\"button\" data-"+attr+"=\""+n+"\" "+(n===page?"aria-current=\"page\"":"")+">"+n+"</button>";
+  last=n;
+ });
+ out+="<button class=\"page-btn page-arrow\" type=\"button\" data-"+attr+"=\""+Math.min(pages,page+1)+"\" "+(page===pages?"disabled":"")+" aria-label=\"Berikutnya\">›</button></nav>";
+ return out;
+}
+
 function renderVideos(){
  let list=[...state.videos];
  if(state.view==="popular")list.sort((a,b)=>(b.views||0)-(a.views||0));
@@ -104,12 +121,16 @@ function renderVideos(){
  if(state.search)list=list.filter(v=>(v.title+" "+(v.description||"")).toLowerCase().includes(state.search));
  const popular=[...state.videos].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,4);
  $("#popularGrid").innerHTML=popular.map(card).join("")||'<div class="loading-card">Belum ada video.</div>';
- $("#videoGrid").innerHTML=list.map(card).join("");
+ const pageSize=12,pageCount=Math.max(1,Math.ceil(list.length/pageSize));
+ state.page=Math.min(Math.max(1,state.page),pageCount);
+ const start=(state.page-1)*pageSize;
+ $("#videoGrid").innerHTML=list.slice(start,start+pageSize).map(card).join("");
  $("#videoCount").textContent=list.length+" video tersedia";
  $("#emptyState").classList.toggle("hidden",list.length>0);
- $("#pagination").innerHTML="";
+ $("#pagination").innerHTML=paginationMarkup(list.length,state.page,pageSize,"page");
 }
 async function openVideo(id){
+ const preservedScrollY=window.scrollY;
  const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;
  if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif. Pilih paket untuk mengajukan langganan.</p><button class="btn btn-primary" id="unlockNow">Lihat paket membership</button>`);$("#unlockNow").onclick=membershipPanel;return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
@@ -128,10 +149,17 @@ async function openVideo(id){
   <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
   <p class="player-description">${esc(v.description||"")}</p>
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
+  <section class="player-recommendations" aria-label="Video lainnya">
+   <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
+   <div class="recommendation-grid" id="recommendationGrid"></div>
+   <div class="recommendation-pagination" id="recommendationPagination"></div>
+  </section>
  </div>`);
  $("#modalBackdrop").classList.add("player-mode");
  $("#mainModal").classList.add("player-modal");
  $("#playerClose").onclick=closeModal;
+ state.recommendationPage=1;renderRecommendations(v.id);
+ requestAnimationFrame(()=>window.scrollTo({top:preservedScrollY,left:0,behavior:"instant"}));
  try{
   let playbackUrl=v.video_url;
   if(v.storage_path){
@@ -214,6 +242,22 @@ async function openVideo(id){
   };
  }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<div class="player-error">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</div>';console.error("ASUPANMEME playback:",error)}
 }
+
+function renderRecommendations(currentId){
+ const items=state.videos.filter(x=>String(x.id)!==String(currentId));
+ const size=4,pages=Math.max(1,Math.ceil(items.length/size));
+ state.recommendationPage=Math.min(Math.max(1,state.recommendationPage),pages);
+ const start=(state.recommendationPage-1)*size;
+ const grid=$("#recommendationGrid");if(!grid)return;
+ grid.innerHTML=items.slice(start,start+size).map(x=>
+  '<button type="button" class="recommendation-card" data-recommendation-video="'+esc(x.id)+'"><span class="recommendation-thumb">'+
+  (x.thumbnail_url?'<img loading="lazy" src="'+esc(x.thumbnail_url)+'" alt="">':'<span>A.</span>')+
+  '</span><span class="recommendation-copy"><b>'+esc(x.title)+'</b><small>'+Number(x.views||0).toLocaleString("id-ID")+' views</small></span></button>'
+ ).join("")||'<p class="muted">Belum ada video lainnya.</p>';
+ const count=$("#recommendationCount");if(count)count.textContent=items.length+" video";
+ const pager=$("#recommendationPagination");if(pager)pager.innerHTML=paginationMarkup(items.length,state.recommendationPage,size,"rec-page");
+}
+
 async function membershipPanel(){
  // Paket dan harga boleh dilihat publik; login baru diwajibkan saat memilih paket.
  let plans=[{id:"weekly",name:"Premium 7 Hari",price:5000,duration_days:7},{id:"lifetime",name:"Premium Permanen",price:20000,duration_days:0}],payment={};
@@ -371,12 +415,19 @@ async function adminPanel(){
  $$("[data-reject]").forEach(b=>b.onclick=()=>reviewPayment(b.dataset.reject,false));
 }
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
-function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
+function nav(view){state.view=view;state.page=1;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel();if(a.dataset.action==="upload")uploadPanel()}});
-$$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
-$("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();renderVideos()};
-$("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));renderVideos()};
+$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
+$("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();state.page=1;renderVideos()};
+$("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));state.page=1;renderVideos()};
 const sidebar=$("#sidebar"),sidebarOverlay=$("#sidebarOverlay");
+document.addEventListener("click",event=>{
+ const p=event.target.closest("[data-page]");
+ if(p&&!p.disabled){state.page=Number(p.dataset.page)||1;renderVideos();return}
+ const rp=event.target.closest("[data-rec-page]");
+ if(rp&&!rp.disabled){state.recommendationPage=Number(rp.dataset.recPage)||1;const title=$("#modalTitle")?.textContent;const current=state.videos.find(x=>x.title===title);if(current)renderRecommendations(current.id);return}
+ const rec=event.target.closest("[data-recommendation-video]");if(rec)openVideo(rec.dataset.recommendationVideo);
+});
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
 function toggleSidebar(){
  const opening=!sidebar.classList.contains("open");
