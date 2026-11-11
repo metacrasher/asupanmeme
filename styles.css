@@ -16,3 +16,31 @@
  .modal{max-height:calc(100dvh - 20px);overflow-y:auto;overscroll-behavior:contain;padding-top:58px}
  .modal-close{position:sticky;float:right;top:-45px;margin-top:-42px;margin-right:-10px;z-index:5;width:38px;height:38px;font-size:26px;background:#34313d;color:#fff;box-shadow:0 3px 12px #0008}
 }
+
+
+/* Reliable close controls and visible payment states */
+.modal-close{position:absolute!important;top:12px!important;right:12px!important;float:none!important;margin:0!important;z-index:100!important;display:grid;place-items:center;pointer-events:auto;cursor:pointer;width:38px;height:38px;background:#34313d;color:#fff;border:1px solid #514b5b;border-radius:10px;font-size:26px;line-height:1}
+.modal{position:relative}
+.payment-history{margin-top:22px;padding-top:16px;border-top:1px solid #37313b}
+.payment-history h3,.admin-qris h3{font-size:15px;margin:0 0 12px}
+.payment-status-row{padding:12px 0;border-bottom:1px solid #302d37}
+.payment-status-row strong,.payment-status-row small{display:block}
+.payment-status-row strong{font-size:12px;margin-bottom:8px}
+.payment-status-row small{font-size:10px;color:#9995a2;margin-top:6px}
+.status-pill{display:inline-flex;align-items:center;width:max-content;padding:6px 9px;border-radius:999px;background:#292630;color:#d9d3df;font-size:10px;font-weight:700}
+.status-pill.pending{background:#3b2d17;color:#ffd48a}
+.status-pill.approved{background:#173a2b;color:#8be0b0}
+.status-pill.rejected{background:#421e2a;color:#ff9eb3}
+.qris-missing{padding:24px 14px;border:1px dashed #66505b;border-radius:12px;text-align:center;color:#d7b9c4;font-size:12px;line-height:1.6;background:#1b151d}
+.admin-qris{margin:0 0 22px;padding:16px;border:1px solid #39313e;border-radius:14px;background:#17141b}
+.admin-qris small{display:block;margin-top:10px;color:#a9a2ad;font-size:11px;line-height:1.5}
+.admin-qris-preview{display:block;max-width:min(100%,260px);max-height:260px;object-fit:contain;background:#fff;border-radius:10px;padding:8px;margin:12px auto}
+.payment-pending{text-align:left}
+.payment-pending .pending-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#3b2d17;color:#ffd48a;font-size:27px;margin-bottom:14px}
+.payment-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;margin:18px 0;border:1px solid #39313e;border-radius:12px;background:#19161e}
+.payment-summary span{font-size:11px;color:#aaa2b0}
+.payment-summary strong{font-size:12px;text-align:right}
+.payment-summary .pending-text{color:#ffd48a}
+.video-card[role=button]{cursor:pointer}
+.video-card[role=button]:focus-visible{outline:2px solid var(--pink2);outline-offset:4px}
+@media(max-width:800px){.modal-close{top:10px!important;right:10px!important}.modal{padding-top:58px}}
