@@ -115,7 +115,7 @@ async function openVideo(id){
   <div class="player-toolbar">
    <div class="player-brand">ASUPANMEME <i>/ NOW PLAYING</i></div>
    <div class="player-actions">
-    <button type="button" class="player-tool" id="videoPlayPause" aria-pressed="false">▶ Putar</button>
+    
     <button type="button" class="player-tool" id="videoZoom" aria-pressed="false">↗ Perbesar</button>
     <button type="button" class="player-tool" id="videoFullscreen">⛶ Layar penuh</button>
     <button type="button" class="player-close" id="playerClose" aria-label="Tutup pemutar">×</button>
