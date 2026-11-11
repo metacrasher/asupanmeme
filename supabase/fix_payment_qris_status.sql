@@ -74,10 +74,12 @@ begin
   admin_note=review_payment.admin_note,reviewed_by=auth.uid(),reviewed_at=now()
  where id=submission_id;
  if approve_payment then
-  update public.profiles set subscription_status='active',
-   subscription_expires_at=case when p.duration_days=0 then null
-    else greatest(coalesce(subscription_expires_at,now()),now())+make_interval(days=>p.duration_days) end
-  where id=s.user_id;
+  update public.profiles as profile set subscription_status='active',
+   subscription_expires_at=case
+    when p.duration_days=0 or (profile.subscription_status='active' and profile.subscription_expires_at is null) then null
+    else greatest(coalesce(profile.subscription_expires_at,now()),now())+make_interval(days=>p.duration_days)
+   end
+  where profile.id=s.user_id;
  end if;
 end $$;
 revoke all on function public.review_payment(uuid,boolean,text) from public;
