@@ -5,15 +5,16 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 const url = process.env.SUPABASE_URL || "https://icuebwblmzbncnjlzneh.supabase.co";
 const anon = process.env.SUPABASE_ANON_KEY || "sb_publishable_PDuiLlxiv-_M_A7p60kAMw_0gW_07li";
 
-function r2Client() {
-  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = process.env;
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) {
-    throw new Error("Konfigurasi Cloudflare R2 belum lengkap di Vercel.");
+function dahonoClient() {
+  const { DAHONO_S3_ACCESS_KEY, DAHONO_S3_SECRET_KEY } = process.env;
+  if (!DAHONO_S3_ACCESS_KEY || !DAHONO_S3_SECRET_KEY || !process.env.DAHONO_S3_BUCKET) {
+    throw new Error("Konfigurasi Dahono S3 belum lengkap di Vercel.");
   }
   return new S3Client({
-    region: "auto",
-    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: { accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY }
+    region: process.env.DAHONO_S3_REGION || "us-east-1",
+    endpoint: process.env.DAHONO_S3_ENDPOINT || "https://s3.dahono.com",
+    forcePathStyle: true,
+    credentials: { accessKeyId: DAHONO_S3_ACCESS_KEY, secretAccessKey: DAHONO_S3_SECRET_KEY }
   });
 }
 
@@ -40,7 +41,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Video tidak tersedia." });
     }
 
-    // Enforce exclusive membership server-side before signing an R2 URL.
+    // Enforce exclusive membership server-side before signing an Dahono URL.
     if (video.is_exclusive) {
       if (!token) return res.status(403).json({ error: "Membership aktif diperlukan." });
       const { data: userData, error: userError } = await client.auth.getUser(token);
@@ -58,10 +59,10 @@ export default async function handler(req, res) {
 
     if (video.storage_provider === "r2") {
       const command = new GetObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME,
+        Bucket: process.env.DAHONO_S3_BUCKET,
         Key: video.storage_path
       });
-      const signedUrl = await getSignedUrl(r2Client(), command, { expiresIn: 3600 });
+      const signedUrl = await getSignedUrl(dahonoClient(), command, { expiresIn: 3600 });
       return res.status(200).json({ url: signedUrl });
     }
 
