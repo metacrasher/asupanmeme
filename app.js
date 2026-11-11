@@ -115,6 +115,7 @@ async function openVideo(id){
   <div class="player-toolbar">
    <div class="player-brand">ASUPANMEME <i>/ NOW PLAYING</i></div>
    <div class="player-actions">
+    <button type="button" class="player-tool" id="videoPlayPause" aria-pressed="false">▶ Putar</button>
     <button type="button" class="player-tool" id="videoZoom" aria-pressed="false">↗ Perbesar</button>
     <button type="button" class="player-tool" id="videoFullscreen">⛶ Layar penuh</button>
     <button type="button" class="player-close" id="playerClose" aria-label="Tutup pemutar">×</button>
@@ -139,7 +140,7 @@ async function openVideo(id){
   }
   const player=$("#videoPlayer");
   if(!player||$("#modalBackdrop").classList.contains("hidden"))return;
-  player.innerHTML='<video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" src="'+esc(playbackUrl)+'"></video>';
+  player.innerHTML='<video controls playsinline webkit-playsinline preload="metadata" src="'+esc(playbackUrl)+'"></video>';
   const video=player.querySelector("video");
   if(video&&db&&!String(v.id).startsWith("demo")){
    let counted=false;
@@ -157,19 +158,54 @@ async function openVideo(id){
     }
    });
   }
-  const zoomButton=$("#videoZoom"),fullscreenButton=$("#videoFullscreen");
+  const playPauseButton=$("#videoPlayPause");
+  const zoomButton=$("#videoZoom");
+  const fullscreenButton=$("#videoFullscreen");
+
+  const syncPlayPause=()=>{
+   const playing=!video.paused&&!video.ended;
+   playPauseButton.textContent=playing?"Ⅱ Pause":"▶ Putar";
+   playPauseButton.setAttribute("aria-pressed",String(playing));
+  };
+  video.addEventListener("play",syncPlayPause);
+  video.addEventListener("pause",syncPlayPause);
+  video.addEventListener("ended",syncPlayPause);
+  playPauseButton.onclick=async()=>{
+   try{
+    if(video.paused||video.ended)await video.play();
+    else video.pause();
+    syncPlayPause();
+   }catch(error){toast("Video belum dapat diputar. Periksa koneksi atau sumber video.");}
+  };
+  syncPlayPause();
+
   zoomButton.onclick=()=>{
    const zoomed=video.classList.toggle("video-zoomed");
    zoomButton.textContent=zoomed?"↙ Normal":"↗ Perbesar";
    zoomButton.setAttribute("aria-pressed",String(zoomed));
+   player.classList.toggle("video-zoom-active",zoomed);
   };
   fullscreenButton.onclick=async()=>{
    try{
-    if(document.fullscreenElement){await document.exitFullscreen();return}
-    if(player.requestFullscreen)await player.requestFullscreen();
-    else if(video.requestFullscreen)await video.requestFullscreen();
-    else if(video.webkitEnterFullscreen)video.webkitEnterFullscreen();
-   }catch(error){toast("Mode layar penuh tidak tersedia di browser ini.")}
+    // iPhone/iPad Safari exposes fullscreen on the video element itself.
+    if(video.webkitEnterFullscreen&&!video.requestFullscreen&&!player.requestFullscreen){
+     video.webkitEnterFullscreen();
+     return;
+    }
+    if(document.fullscreenElement){
+     await document.exitFullscreen();
+     return;
+    }
+    if(player.requestFullscreen){
+     await player.requestFullscreen();
+    }else if(video.requestFullscreen){
+     await video.requestFullscreen();
+    }else if(video.webkitEnterFullscreen){
+     video.webkitEnterFullscreen();
+    }else{
+     toast("Mode layar penuh tidak didukung browser ini.");
+    }
+   }catch(error){toast("Mode layar penuh tidak tersedia. Coba gunakan browser terbaru.");}
   };
  }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<div class="player-error">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</div>';console.error("ASUPANMEME playback:",error)}
 }
