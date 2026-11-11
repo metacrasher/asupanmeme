@@ -121,6 +121,7 @@ async function openVideo(id){
    </div>
   </div>
   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
+  <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
   <div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div>
   <p class="player-description">${esc(v.description||"")}</p>
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
@@ -140,6 +141,22 @@ async function openVideo(id){
   if(!player||$("#modalBackdrop").classList.contains("hidden"))return;
   player.innerHTML='<video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" src="'+esc(playbackUrl)+'"></video>';
   const video=player.querySelector("video");
+  if(video&&db&&!String(v.id).startsWith("demo")){
+   let counted=false;
+   video.addEventListener("play",async()=>{
+    if(counted)return;
+    counted=true;
+    const {data,error}=await db.rpc("increment_video_view",{target_video_id:v.id});
+    if(error){counted=false;console.error("ASUPANMEME view counter:",error);return}
+    const updatedViews=Number(data);
+    if(Number.isFinite(updatedViews)){
+     v.views=updatedViews;
+     const label=$("#mainModal [data-view-count]");
+     if(label)label.textContent=updatedViews.toLocaleString("id-ID")+" views";
+     renderVideos();
+    }
+   });
+  }
   const zoomButton=$("#videoZoom"),fullscreenButton=$("#videoFullscreen");
   zoomButton.onclick=()=>{
    const zoomed=video.classList.toggle("video-zoomed");
