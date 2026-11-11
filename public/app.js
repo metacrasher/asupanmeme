@@ -58,17 +58,21 @@ function playerRecommendations(currentId){
 }
 async function openVideo(id){
  const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;
- if(v.is_exclusive&&!hasPremium()){
-  modal('<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif.</p><button class="btn btn-primary" id="unlockNow">Lihat membership</button>');
-  $("#unlockNow").onclick=membershipPanel;return;
- }
+ const locked=v.is_exclusive&&!hasPremium();
  const recommendations=playerRecommendations(v.id);
- const playerMarkup='<div class="player-page"><div class="player-toolbar"><span class="player-brand">ASUPANMEME <i> / PLAYER</i></span><button class="player-close" id="playerClose" type="button" aria-label="Tutup pemutar">×</button></div><div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div><div class="player-details"><div><h2 id="modalTitle">'+esc(v.title)+'</h2><p>'+Number(v.views||0).toLocaleString("id-ID")+' views · '+new Date(v.created_at).toLocaleDateString("id-ID")+'</p></div><span class="player-access">'+(v.is_exclusive?'✦ EKSKLUSIF':'GRATIS')+'</span></div>'+(v.description?'<p class="player-description">'+esc(v.description)+'</p>':'')+recommendations+'</div>';
+ const lockMarkup='<div class="premium-lock-card"><div class="premium-lock-icon">✦</div><span class="premium-lock-kicker">ASUPANMEME PREMIUM</span><h2>Akses khusus anggota</h2><p>Video ini termasuk konten eksklusif. Aktifkan membership untuk membuka dan menonton video ini selama masa aktif paket.</p><div class="premium-lock-actions"><button class="btn btn-primary" id="checkPremiumAccess" type="button">↻ Periksa akses</button><button class="btn btn-outline" id="unlockNow" type="button">Lihat paket premium</button>'+(!state.user?'<button class="btn btn-ghost" id="premiumLogin" type="button">Masuk ke akun</button>':"")+'</div><small>Sudah berlangganan? Tekan “Periksa akses” setelah login atau setelah membership diaktifkan admin.</small></div>';
+ const playerMarkup='<div class="player-page"><div class="player-toolbar"><span class="player-brand">ASUPANMEME <i> / PLAYER</i></span><button class="player-close" id="playerClose" type="button" aria-label="Tutup pemutar">×</button></div><div class="video-player'+(locked?' premium-locked':'')+'" id="videoPlayer">'+(locked?lockMarkup:'<span class="muted">Menyiapkan video...</span>')+'</div><div class="player-details"><div><h2 id="modalTitle">'+esc(v.title)+'</h2><p>'+Number(v.views||0).toLocaleString("id-ID")+' views · '+new Date(v.created_at).toLocaleDateString("id-ID")+'</p></div><span class="player-access">'+(v.is_exclusive?'✦ EKSKLUSIF':'GRATIS')+'</span></div>'+(v.description?'<p class="player-description">'+esc(v.description)+'</p>':'')+recommendations+'</div>';
  modal(playerMarkup);
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
  $("#playerClose").onclick=closeModal;
- $("[data-recommend]").forEach(b=>b.onclick=()=>openVideo(b.dataset.recommend));
+ $("#mainModal [data-recommend]").forEach(b=>b.onclick=()=>openVideo(b.dataset.recommend));
+ if(locked){
+  $("#checkPremiumAccess").onclick=async()=>{if(!state.user){openAccount();return}const button=$("#checkPremiumAccess");button.disabled=true;button.textContent="Memeriksa...";await loadProfile();if(hasPremium()){toast("Membership aktif. Video siap diputar.");openVideo(v.id)}else{button.disabled=false;button.textContent="↻ Periksa akses";toast("Akses premium belum aktif. Periksa status membership atau hubungi admin.")}};
+  $("#unlockNow").onclick=membershipPanel;
+  if($("#premiumLogin"))$("#premiumLogin").onclick=openAccount;
+  return;
+ }
  const player=$("#videoPlayer");
  if(v.storage_path){
   try{
