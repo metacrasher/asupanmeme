@@ -2,18 +2,28 @@
 "use strict";
 const $ = (s,root=document) => root.querySelector(s);
 const $$ = (s,root=document) => [...root.querySelectorAll(s)];
+// Handle navigation and close controls in one capture-phase listener so
+// nested elements, overlays, and other delegated handlers cannot conflict.
 document.addEventListener("click", event => {
- const target=event.target;if(!(target instanceof Element))return;
+ const target=event.target;
+ if(!(target instanceof Element))return;
  if(target.closest("#modalClose,.modal-close,[data-close-modal]")){
-  event.preventDefault();event.stopPropagation();
+  event.preventDefault();
+  event.stopImmediatePropagation();
   const backdrop=document.getElementById("modalBackdrop");
-  if(backdrop){backdrop.classList.add("hidden");backdrop.setAttribute("aria-hidden","true")}return;
+  if(backdrop){backdrop.classList.add("hidden");backdrop.setAttribute("aria-hidden","true")}
+  return;
  }
- if(target.closest("#sidebarClose,.sidebar-close,[data-close-sidebar]")){
-  event.preventDefault();event.stopPropagation();
-  document.getElementById("sidebar")?.classList.remove("open");
-  document.getElementById("sidebarOverlay")?.classList.remove("visible");
-  document.body.classList.remove("sidebar-open");
+ if(target.closest("#menuToggle,[data-toggle-sidebar]")){
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  toggleSidebar();
+  return;
+ }
+ if(target.closest("#sidebarClose,.sidebar-close,[data-close-sidebar],#sidebarOverlay")){
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  closeSidebar();
  }
 },true);
 
@@ -192,11 +202,13 @@ $("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();r
 $("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));renderVideos()};
 const sidebar=$("#sidebar"),sidebarOverlay=$("#sidebarOverlay");
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
-function toggleSidebar(){const opening=!sidebar.classList.contains("open");sidebar.classList.toggle("open",opening);sidebarOverlay.classList.toggle("visible",opening);document.body.classList.toggle("sidebar-open",opening)}
-$("#menuToggle").onclick=toggleSidebar;
-$("#sidebarClose").onclick=closeSidebar;
-sidebarOverlay.onclick=closeSidebar;
-$("#modalClose").onclick=closeModal;
+function toggleSidebar(){
+ const opening=!sidebar.classList.contains("open");
+ sidebar.classList.toggle("open",opening);
+ sidebarOverlay.classList.toggle("visible",opening);
+ document.body.classList.toggle("sidebar-open",opening);
+}
+
 document.addEventListener("click",event=>{
  const target=event.target;if(!(target instanceof Element))return;
  const saveButton=target.closest("[data-save]");
