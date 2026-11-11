@@ -80,3 +80,12 @@
 .premium-lock-card>small{display:block;color:#777783;font-size:10px;line-height:1.6}
 .premium-lock-actions button:disabled{opacity:.6;cursor:wait}
 @media(max-width:600px){.modal.player-modal .video-player.premium-locked{min-height:330px;padding:18px 12px}.premium-lock-card{padding:12px 4px}.premium-lock-actions{display:grid;grid-template-columns:1fr;width:min(300px,100%);margin:18px auto 12px}.premium-lock-actions .btn{width:100%}}
+
+
+/* Video titles wrap naturally; long titles can expand on demand */
+.video-info{min-width:0}
+.video-title{display:block;max-width:100%;margin:0 0 6px;font-size:13px;font-weight:700;line-height:1.5;white-space:normal;overflow-wrap:anywhere;word-break:normal}
+.video-title.is-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.title-more{display:inline-block;margin:0 0 8px;padding:0;border:0;background:transparent;color:#ff80a4;font-size:10px;font-weight:700;cursor:pointer;text-align:left}
+.title-more:hover{text-decoration:underline}
+.video-info p{overflow-wrap:anywhere}
