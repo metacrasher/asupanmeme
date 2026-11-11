@@ -90,7 +90,7 @@ create policy "User submits own payment" on public.payment_submissions for inser
 create or replace function public.set_payment_plan_values()
 returns trigger language plpgsql security definer set search_path=public
 as $
-declare p public.subscription_plans%rowtype;
+ declare p public.subscription_plans%rowtype;
 begin
  select * into p from public.subscription_plans where id=new.plan_id and active=true;
  if not found then raise exception 'Subscription plan unavailable'; end if;
