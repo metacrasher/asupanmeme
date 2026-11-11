@@ -1,7 +1,7 @@
 (() => {
 "use strict";
 const $ = (s,root=document) => root.querySelector(s);
-const $ = (s,root=document) => [...root.querySelectorAll(s)];
+const $$ = (s,root=document) => [...root.querySelectorAll(s)];
  // Keep the age gate interactive even if a later app initializer fails.
  document.addEventListener("click", event => {
    const yes = event.target.closest("#ageYes");
