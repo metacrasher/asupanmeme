@@ -280,3 +280,22 @@
  .payment-notice p{font-size:11px;line-height:1.7}
  .payment-notice-compact{padding:12px 13px}
 }
+
+/* Compact pagination, avoid horizontal page expansion */
+.content{padding-top:26px}
+.pagination{display:flex;justify-content:center;align-items:center;width:100%;max-width:100%;padding:24px 0 8px;overflow:hidden}
+.pagination-controls{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:7px;max-width:100%;min-width:0}
+.page-btn{min-width:38px;height:38px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;color:#e7e5eb;white-space:nowrap}
+.page-btn.page-arrow{font-size:20px}
+.page-ellipsis{padding:0 2px;color:#777783}
+.recommendation-pagination{display:flex;justify-content:center;align-items:center;max-width:100%;padding:18px 0 2px;overflow:hidden}
+.recommendation-pagination .pagination-controls{gap:6px}
+.recommendation-pagination .page-btn{min-width:34px;height:34px}
+.video-grid,.recommendation-grid{min-width:0;max-width:100%}
+@media(max-width:520px){
+ .content{padding-top:20px}
+ .pagination{padding-top:20px}
+ .pagination-controls{gap:5px}
+ .page-btn{min-width:34px;height:34px;padding:0 8px}
+ .recommendation-pagination .page-btn{min-width:32px;height:32px}
+}
