@@ -55,3 +55,14 @@
  .player-recommendations{margin-top:23px;padding-top:17px}
  .player-recommendation-heading h3{font-size:17px}
 }
+
+
+/* Homepage contributor callout */
+.contributor-notice{display:flex;align-items:center;gap:18px;margin:26px 0 42px;padding:20px 22px;border:1px solid rgba(0,240,255,.2);border-radius:18px;background:linear-gradient(110deg,rgba(0,240,255,.075),rgba(255,255,255,.025) 55%,rgba(160,90,255,.06));box-shadow:0 14px 42px rgba(0,0,0,.16)}
+.contributor-icon{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border-radius:14px;background:rgba(0,240,255,.11);color:#65efff;font-size:22px}
+.contributor-copy{min-width:0;flex:1}
+.contributor-copy .eyebrow{margin:0 0 5px;color:#69e9f7;font-size:10px;letter-spacing:.16em}
+.contributor-copy h3{margin:0 0 5px;font-size:16px;font-weight:700;letter-spacing:-.02em}
+.contributor-copy p{margin:0;color:var(--muted,#a6a4ad);font-size:12px;line-height:1.65;max-width:760px}
+.contributor-notice>.btn{white-space:nowrap;flex:0 0 auto}
+@media(max-width:700px){.contributor-notice{align-items:flex-start;flex-wrap:wrap;gap:13px;margin:20px 0 32px;padding:16px}.contributor-copy{flex:1 1 calc(100% - 60px)}.contributor-notice>.btn{margin-left:59px}}
