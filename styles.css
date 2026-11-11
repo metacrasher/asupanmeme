@@ -89,3 +89,130 @@
  .player-brand{display:none}
  .player-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
 }
+
+
+/* ASUPANMEME player v2: intrinsic-ratio frame and always-visible play/pause */
+.modal.player-modal .video-player{
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:flex-start;
+ gap:12px;
+ width:100%;
+ height:auto;
+ min-height:0;
+ aspect-ratio:auto;
+ overflow:visible;
+ padding:0 0 14px;
+ border:0;
+ background:transparent;
+}
+.modal.player-modal .video-frame{
+ display:block;
+ position:relative;
+ width:100%;
+ max-width:100%;
+ max-height:72dvh;
+ aspect-ratio:16 / 9;
+ margin:0 auto;
+ overflow:hidden;
+ border:1px solid #33333d;
+ border-radius:12px;
+ background:#000;
+}
+.modal.player-modal .video-frame video{
+ display:block;
+ width:100%;
+ height:100%;
+ max-height:72dvh;
+ object-fit:contain;
+ background:#000;
+ transform:none;
+}
+.modal.player-modal .video-frame video.video-zoomed{
+ transform:scale(1.18);
+}
+.video-controls{
+ display:flex;
+ align-items:center;
+ justify-content:flex-start;
+ gap:12px;
+ width:100%;
+ max-width:100%;
+ padding:11px 13px;
+ border:1px solid #34313c;
+ border-radius:12px;
+ background:#14131a;
+}
+.video-play-button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ min-width:142px;
+ min-height:42px;
+ padding:0 17px;
+ border:1px solid #ff4778;
+ border-radius:10px;
+ background:linear-gradient(110deg,#ed1455,#bd0c45);
+ color:#fff;
+ font-size:13px;
+ font-weight:800;
+ box-shadow:0 6px 20px #ed145533;
+}
+.video-play-button[aria-pressed="true"]{background:#29202a;border-color:#765064}
+.video-status{color:#aaa5b1;font-size:12px}
+.video-frame:fullscreen{
+ width:100vw!important;
+ height:100vh!important;
+ max-width:100vw!important;
+ max-height:100vh!important;
+ aspect-ratio:auto!important;
+ border:0;
+ border-radius:0;
+}
+.video-frame:fullscreen video{width:100%;height:100%;max-height:100vh;object-fit:contain}
+.modal.player-modal .player-hint{margin-top:0}
+
+/* Compact, balanced login and registration dialogs */
+.modal.auth-modal{
+ width:min(430px,calc(100vw - 28px));
+ max-width:430px;
+ max-height:min(86dvh,720px);
+ padding:28px 28px 24px;
+ border-radius:18px;
+ overflow-y:auto;
+}
+.modal.auth-modal h2{
+ margin:0 34px 8px 0;
+ font-size:22px;
+ line-height:1.2;
+}
+.modal.auth-modal>p:not(.eyebrow){font-size:12px;line-height:1.55;margin:9px 0}
+.modal.auth-modal .form-stack{gap:10px;margin-top:16px}
+.modal.auth-modal .field{gap:6px}
+.modal.auth-modal .field label{font-size:11px}
+.modal.auth-modal .field input{
+ min-height:43px;
+ padding:10px 12px;
+ border-radius:9px;
+ font-size:13px;
+}
+.modal.auth-modal .form-stack>.btn{min-height:43px;font-size:13px}
+.modal.auth-modal .form-foot{margin:14px 0 0;font-size:11px!important}
+.modal.auth-modal .modal-close{top:12px!important;right:12px!important}
+@media(max-width:600px){
+ .modal.auth-modal{
+  width:min(400px,calc(100vw - 24px));
+  max-height:calc(100dvh - 28px);
+  padding:24px 20px 20px;
+  border-radius:16px;
+ }
+ .modal.auth-modal h2{font-size:20px}
+ .modal.auth-modal .field input{min-height:42px}
+ .modal.player-modal .player-page{padding:10px 12px 26px}
+ .modal.player-modal .video-frame{max-height:68dvh;border-radius:8px}
+ .modal.player-modal .video-frame video{max-height:68dvh}
+ .video-controls{padding:9px;gap:9px}
+ .video-play-button{min-width:130px;min-height:40px;padding:0 12px;font-size:12px}
+ .video-status{font-size:11px}
+}
