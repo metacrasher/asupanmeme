@@ -79,12 +79,28 @@ alter table public.payment_submissions enable row level security;
 alter table public.site_settings enable row level security;
 
 create policy "Profiles readable by owner or admin" on public.profiles for select to authenticated using(id=auth.uid() or public.is_admin());
-create policy "Users update own display name" on public.profiles for update to authenticated using(id=auth.uid()) with check(id=auth.uid() and role='user' and subscription_status in ('free','pending','active','expired','rejected'));
+-- No client-side UPDATE policy on profiles: users must never edit their own role or subscription status.
 create policy "Active plans public read" on public.subscription_plans for select using(active=true or public.is_admin());
 create policy "Published free videos readable" on public.videos for select using(published=true and (not is_exclusive or (auth.uid() is not null and exists(select 1 from public.profiles p where p.id=auth.uid() and p.subscription_status='active' and p.subscription_expires_at>now()))) or public.is_admin());
 create policy "Admins manage videos" on public.videos for all to authenticated using(public.is_admin()) with check(public.is_admin());
 create policy "User sees own submissions" on public.payment_submissions for select to authenticated using(user_id=auth.uid() or public.is_admin());
 create policy "User submits own payment" on public.payment_submissions for insert to authenticated with check(user_id=auth.uid() and status='pending' and reviewed_by is null and reviewed_at is null);
+
+-- Ignore client-supplied prices and names; always copy current plan values from the database.
+create or replace function public.set_payment_plan_values()
+returns trigger language plpgsql security definer set search_path=public
+as $
+declare p public.subscription_plans%rowtype;
+begin
+ select * into p from public.subscription_plans where id=new.plan_id and active=true;
+ if not found then raise exception 'Subscription plan unavailable'; end if;
+ new.plan_name := p.name;
+ new.amount := p.price;
+ return new;
+end $;
+drop trigger if exists before_payment_submission_insert on public.payment_submissions;
+create trigger before_payment_submission_insert before insert on public.payment_submissions
+for each row execute function public.set_payment_plan_values();
 create policy "Admin sees public settings" on public.site_settings for select using(key in ('payment_instructions','payment_account') or public.is_admin());
 create policy "Admin manages settings" on public.site_settings for all to authenticated using(public.is_admin()) with check(public.is_admin());
 
