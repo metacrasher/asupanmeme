@@ -52,7 +52,7 @@ const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:n
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
-const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
+const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal","auth-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
 const closeModal = () => {const video=$("#videoPlayer video");if(video){video.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").setAttribute("aria-hidden","true")};
 const demoVideos = [
  {id:"demo1",title:"Contoh video pilihan hari ini",description:"Video demo untuk memperlihatkan tampilan katalog.",thumbnail:"",duration:"08:24",views:12400,created_at:new Date().toISOString(),is_exclusive:false,video_url:""},
@@ -60,8 +60,8 @@ const demoVideos = [
  {id:"demo3",title:"Rekomendasi komunitas",description:"Contoh kartu video ASUPANMEME.",thumbnail:"",duration:"06:42",views:7300,created_at:new Date(Date.now()-172800000).toISOString(),is_exclusive:false,video_url:""},
  {id:"demo4",title:"Premium selection",description:"Konten khusus anggota aktif.",thumbnail:"",duration:"15:02",views:6200,created_at:new Date(Date.now()-259200000).toISOString(),is_exclusive:true,video_url:""}
 ];
-function openAccount(){if(state.user){accountPanel();return}modal(`<p class="eyebrow">WELCOME BACK</p><h2 id="modalTitle">Masuk ke akun</h2><p>Pengguna masuk dengan username. Admin masuk menggunakan email admin. Gunakan password yang sama seperti saat mendaftar.</p><form class="form-stack" id="authForm"><div class="field"><label>Username atau email admin</label><input name="identity" type="text" required autocomplete="username" maxlength="254" placeholder="Masukkan username"></div><div class="field"><label>Password</label><input name="password" type="password" required autocomplete="current-password" placeholder="Masukkan password"></div><button class="btn btn-primary" type="submit">Masuk</button></form><p class="muted">Pastikan username dan password benar. Simpan informasi login kamu agar tidak lupa.</p><p class="form-foot">Belum punya akun? <button class="inline-link" id="showSignup">Daftar sekarang</button></p>`);$("#authForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),identity=String(f.get("identity")||"").trim().toLowerCase();if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}let loginEmail=identity;if(!identity.includes("@")){if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(identity)){toast("Username harus 3–24 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.");return}loginEmail=identity+"@members.asupanmeme.invalid"}const submit=e.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent="Memeriksa...";const {data,error}=await db.auth.signInWithPassword({email:loginEmail,password:f.get("password")});if(error){submit.disabled=false;submit.textContent="Masuk";toast("Username/email atau password tidak sesuai. Periksa kembali data login kamu.");return}state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Selamat datang kembali di ASUPANMEME.");};$("#showSignup").onclick=signupPanel}
-function signupPanel(){modal(`<p class="eyebrow">JOIN THE COMMUNITY</p><h2 id="modalTitle">Buat akun ASUPANMEME</h2><p>Daftar cukup dengan username dan password. Email tidak diperlukan untuk akun anggota.</p><form class="form-stack" id="signupForm"><div class="field"><label>Username</label><input name="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,23}" autocomplete="username" placeholder="Contoh: namakamu"></div><div class="field"><label>Password</label><input name="password" type="password" minlength="8" required autocomplete="new-password" placeholder="Minimal 8 karakter"></div><div class="field"><label>Ulangi password</label><input name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password" placeholder="Masukkan ulang password"></div><p class="muted">Penting: ingat username dan password ini. Akun anggota tidak menggunakan email untuk pemulihan password, jadi simpan informasi login di tempat yang aman dan jangan bagikan kepada siapa pun.</p><button class="btn btn-primary" type="submit">Buat akun</button></form><p class="form-foot">Sudah punya akun? <button class="inline-link" id="showLogin">Masuk</button></p>`);$("#signupForm").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form),username=String(f.get("username")||"").trim().toLowerCase(),password=String(f.get("password")||"");if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)){toast("Username harus 3–24 karakter dan hanya memakai huruf, angka, titik, _ atau -.");return}if(password!==f.get("passwordConfirm")){toast("Konfirmasi password belum sama.");return}const btn=form.querySelector('button[type="submit"]');btn.disabled=true;btn.textContent="Membuat akun...";const {data,error}=await db.auth.signUp({email:username+"@members.asupanmeme.invalid",password,options:{data:{username,display_name:username}}});if(error){btn.disabled=false;btn.textContent="Buat akun";toast(error.message.toLowerCase().includes("already")?"Username tersebut sudah digunakan. Silakan pilih username lain.":"Pendaftaran gagal: "+error.message);return}if(data.user){if(data.session){state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Akun berhasil dibuat. Selamat bergabung!");}else{toast("Akun berhasil dibuat. Jika belum bisa masuk, silakan hubungi admin.");closeModal()}}};$("#showLogin").onclick=openAccount}
+function openAccount(){if(state.user){accountPanel();return}modal(`<p class="eyebrow">WELCOME BACK</p><h2 id="modalTitle">Masuk ke akun</h2><p>Pengguna masuk dengan username. Admin masuk menggunakan email admin. Gunakan password yang sama seperti saat mendaftar.</p><form class="form-stack" id="authForm"><div class="field"><label>Username atau email admin</label><input name="identity" type="text" required autocomplete="username" maxlength="254" placeholder="Masukkan username"></div><div class="field"><label>Password</label><input name="password" type="password" required autocomplete="current-password" placeholder="Masukkan password"></div><button class="btn btn-primary" type="submit">Masuk</button></form><p class="muted">Pastikan username dan password benar. Simpan informasi login kamu agar tidak lupa.</p><p class="form-foot">Belum punya akun? <button class="inline-link" id="showSignup">Daftar sekarang</button></p>`);$("#mainModal").classList.add("auth-modal");$("#authForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),identity=String(f.get("identity")||"").trim().toLowerCase();if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}let loginEmail=identity;if(!identity.includes("@")){if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(identity)){toast("Username harus 3–24 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.");return}loginEmail=identity+"@members.asupanmeme.invalid"}const submit=e.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent="Memeriksa...";const {data,error}=await db.auth.signInWithPassword({email:loginEmail,password:f.get("password")});if(error){submit.disabled=false;submit.textContent="Masuk";toast("Username/email atau password tidak sesuai. Periksa kembali data login kamu.");return}state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Selamat datang kembali di ASUPANMEME.");};$("#showSignup").onclick=signupPanel}
+function signupPanel(){modal(`<p class="eyebrow">JOIN THE COMMUNITY</p><h2 id="modalTitle">Buat akun ASUPANMEME</h2><p>Daftar cukup dengan username dan password. Email tidak diperlukan untuk akun anggota.</p><form class="form-stack" id="signupForm"><div class="field"><label>Username</label><input name="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,23}" autocomplete="username" placeholder="Contoh: namakamu"></div><div class="field"><label>Password</label><input name="password" type="password" minlength="8" required autocomplete="new-password" placeholder="Minimal 8 karakter"></div><div class="field"><label>Ulangi password</label><input name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password" placeholder="Masukkan ulang password"></div><p class="muted">Penting: ingat username dan password ini. Akun anggota tidak menggunakan email untuk pemulihan password, jadi simpan informasi login di tempat yang aman dan jangan bagikan kepada siapa pun.</p><button class="btn btn-primary" type="submit">Buat akun</button></form><p class="form-foot">Sudah punya akun? <button class="inline-link" id="showLogin">Masuk</button></p>`);$("#mainModal").classList.add("auth-modal");$("#signupForm").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form),username=String(f.get("username")||"").trim().toLowerCase(),password=String(f.get("password")||"");if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)){toast("Username harus 3–24 karakter dan hanya memakai huruf, angka, titik, _ atau -.");return}if(password!==f.get("passwordConfirm")){toast("Konfirmasi password belum sama.");return}const btn=form.querySelector('button[type="submit"]');btn.disabled=true;btn.textContent="Membuat akun...";const {data,error}=await db.auth.signUp({email:username+"@members.asupanmeme.invalid",password,options:{data:{username,display_name:username}}});if(error){btn.disabled=false;btn.textContent="Buat akun";toast(error.message.toLowerCase().includes("already")?"Username tersebut sudah digunakan. Silakan pilih username lain.":"Pendaftaran gagal: "+error.message);return}if(data.user){if(data.session){state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Akun berhasil dibuat. Selamat bergabung!");}else{toast("Akun berhasil dibuat. Jika belum bisa masuk, silakan hubungi admin.");closeModal()}}};$("#showLogin").onclick=openAccount}
 async function loadProfile(){if(!db||!state.user)return;const {data}=await db.from("profiles").select("*").eq("id",state.user.id).maybeSingle();state.profile=data||null}
 async function accountPanel(){
  modal(`<p class="eyebrow">MY ACCOUNT</p><h2 id="modalTitle">${esc(state.profile?.display_name||state.user.email)}</h2><p>${esc(state.profile?.role==="admin"?state.user.email:(state.profile?.username||"Akun anggota"))}</p><p>Membership: <span class="status-pill ${state.profile?.subscription_status==="active"?"approved":""}">${esc(state.profile?.subscription_status||"free").toUpperCase()}</span></p><div class="form-stack"><button class="btn btn-primary" id="uploadOpen">Upload video</button><button class="btn btn-ghost" id="myMembership">Kelola membership</button>${state.profile?.role==="admin"?'<button class="btn btn-ghost" id="adminOpen">Dashboard admin</button>':""}<button class="btn btn-ghost" id="logoutBtn">Keluar</button></div><section class="payment-history"><h3>Riwayat pembayaran</h3><div id="myPaymentHistory"><p class="muted">Memuat status pembayaran...</p></div></section>`);
@@ -123,7 +123,7 @@ async function openVideo(id){
   </div>
   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
   <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
-  <div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div>
+  <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
   <p class="player-description">${esc(v.description||"")}</p>
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
  </div>`);
@@ -140,7 +140,7 @@ async function openVideo(id){
   }
   const player=$("#videoPlayer");
   if(!player||$("#modalBackdrop").classList.contains("hidden"))return;
-  player.innerHTML='<video controls playsinline webkit-playsinline preload="metadata" src="'+esc(playbackUrl)+'"></video>';
+  player.innerHTML='<div class="video-frame" id="videoFrame"><video controls playsinline webkit-playsinline preload="metadata" src="'+esc(playbackUrl)+'"></video></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Memuat video…</span></div>';
   const video=player.querySelector("video");
   if(video&&db&&!String(v.id).startsWith("demo")){
    let counted=false;
@@ -159,14 +159,29 @@ async function openVideo(id){
    });
   }
   const playPauseButton=$("#videoPlayPause");
+  const videoFrame=$("#videoFrame");
+  const videoStatus=$("#videoStatus");
   const zoomButton=$("#videoZoom");
   const fullscreenButton=$("#videoFullscreen");
 
   const syncPlayPause=()=>{
    const playing=!video.paused&&!video.ended;
-   playPauseButton.textContent=playing?"Ⅱ Pause":"▶ Putar";
+   playPauseButton.textContent=playing?"Ⅱ Jeda video":"▶ Putar video";
    playPauseButton.setAttribute("aria-pressed",String(playing));
+   if(videoStatus)videoStatus.textContent=video.ended?"Video selesai":playing?"Sedang diputar":"Dijeda";
   };
+  const fitVideoFrame=()=>{
+   if(!video.videoWidth||!video.videoHeight||!videoFrame)return;
+   const ratio=video.videoWidth/video.videoHeight;
+   const availableWidth=Math.max(240,player.clientWidth);
+   const maxHeight=Math.max(220,window.innerHeight*.72);
+   videoFrame.style.width=Math.min(availableWidth,maxHeight*ratio)+"px";
+   videoFrame.style.aspectRatio=video.videoWidth+" / "+video.videoHeight;
+   videoFrame.dataset.ratio=String(ratio);
+  };
+  video.addEventListener("loadedmetadata",fitVideoFrame);
+  video.addEventListener("resize",fitVideoFrame);
+  window.addEventListener("resize",fitVideoFrame,{passive:true});
   video.addEventListener("play",syncPlayPause);
   video.addEventListener("pause",syncPlayPause);
   video.addEventListener("ended",syncPlayPause);
@@ -187,24 +202,12 @@ async function openVideo(id){
   };
   fullscreenButton.onclick=async()=>{
    try{
-    // iPhone/iPad Safari exposes fullscreen on the video element itself.
-    if(video.webkitEnterFullscreen&&!video.requestFullscreen&&!player.requestFullscreen){
-     video.webkitEnterFullscreen();
-     return;
-    }
-    if(document.fullscreenElement){
-     await document.exitFullscreen();
-     return;
-    }
-    if(player.requestFullscreen){
-     await player.requestFullscreen();
-    }else if(video.requestFullscreen){
-     await video.requestFullscreen();
-    }else if(video.webkitEnterFullscreen){
-     video.webkitEnterFullscreen();
-    }else{
-     toast("Mode layar penuh tidak didukung browser ini.");
-    }
+    if(document.fullscreenElement){await document.exitFullscreen();return}
+    if(videoFrame?.requestFullscreen){await videoFrame.requestFullscreen();}
+    else if(player.requestFullscreen){await player.requestFullscreen();}
+    else if(video.requestFullscreen){await video.requestFullscreen();}
+    else if(video.webkitEnterFullscreen){video.webkitEnterFullscreen();}
+    else{toast("Mode layar penuh tidak didukung browser ini.");}
    }catch(error){toast("Mode layar penuh tidak tersedia. Coba gunakan browser terbaru.");}
   };
  }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<div class="player-error">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</div>';console.error("ASUPANMEME playback:",error)}
