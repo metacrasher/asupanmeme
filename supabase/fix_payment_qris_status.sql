@@ -50,6 +50,11 @@ using(
  ) or public.is_admin()
 );
 
+-- Ensure administrators retain video-management access even if schema.sql stopped early.
+drop policy if exists "Admins manage videos" on public.videos;
+create policy "Admins manage videos" on public.videos for all to authenticated
+using(public.is_admin()) with check(public.is_admin());
+
 -- A zero-day plan represents permanent access (NULL expiry).
 alter table public.subscription_plans drop constraint if exists subscription_plans_duration_days_check;
 alter table public.subscription_plans add constraint subscription_plans_duration_days_check check(duration_days>=0);
