@@ -141,6 +141,9 @@ using(bucket_id='payment-proofs' and ((storage.foldername(name))[1]=auth.uid()::
 
 -- Telegram admin bot and private video media.
 alter table public.videos add column if not exists storage_path text;
+alter table public.videos add column if not exists storage_provider text not null default 'supabase';
+alter table public.videos drop constraint if exists videos_storage_provider_check;
+alter table public.videos add constraint videos_storage_provider_check check (storage_provider in ('supabase','r2'));
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
 values ('media-videos','media-videos',false,524288000,array['video/mp4','video/webm','video/quicktime','video/x-matroska'])
 on conflict(id) do update set public=false;
