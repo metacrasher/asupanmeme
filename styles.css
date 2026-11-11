@@ -299,3 +299,27 @@
  .page-btn{min-width:34px;height:34px;padding:0 8px}
  .recommendation-pagination .page-btn{min-width:32px;height:32px}
 }
+
+/* Creator upload dialog: refined hierarchy, spacing and file-field presentation */
+.upload-dialog{width:100%;max-width:620px;margin:0 auto}
+.upload-dialog-heading{margin:0 0 20px;padding:2px 2px 17px;border-bottom:1px solid #302d38}
+.upload-kicker{display:inline-block;margin-bottom:9px;color:#ed7b9b;font-size:9px;font-weight:800;letter-spacing:1.7px}
+.upload-dialog-heading h2{margin:0 34px 7px 0;font:700 clamp(22px,4vw,28px) "Space Grotesk";letter-spacing:-.7px}
+.upload-dialog-heading>p{margin:0;color:#aaa5b1;font-size:12px;line-height:1.65}
+.upload-promo{display:flex;align-items:flex-start;gap:13px;margin:0 0 22px;padding:15px 16px;border:1px solid #45313d;border-radius:13px;background:linear-gradient(125deg,rgba(111,34,62,.24),rgba(28,25,34,.94))}
+.upload-promo-mark{display:grid;flex:0 0 34px;width:34px;height:34px;place-items:center;border:1px solid #774056;border-radius:10px;background:#321d2a;color:#ff8eaf;font-size:16px}
+.upload-promo strong{display:block;color:#f8edf1;font-size:12px;line-height:1.5}
+.upload-promo p{margin:4px 0;color:#c2b7c0;font-size:11px;line-height:1.65}
+.upload-promo small{display:block;color:#9f929e;font-size:10px;line-height:1.55}
+.upload-form{gap:14px}
+.upload-section-label{margin:2px 0 -3px;color:#ed8aa7;font-size:9px;font-weight:800;letter-spacing:1.45px}
+.upload-form .field{gap:7px}
+.upload-form .field label{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px;color:#eeeaf0;font-size:11px;font-weight:700}
+.upload-form .field label>span{color:#8e8995;font-size:9px;font-weight:500}
+.field-optional{color:#8f8997;font-size:8px;font-weight:700;letter-spacing:.7px}
+.upload-form input:not([type=file]),.upload-form textarea,.upload-form select{width:100%;border:1px solid #393541;border-radius:10px;background:#121118;color:#f7f4f8;padding:12px 13px;font-size:12px;outline:none;transition:border-color .18s,box-shadow .18s}
+.upload-form input:focus,.upload-form textarea:focus,.upload-form select:focus{border-color:#c94b72;box-shadow:0 0 0 3px #c94b721c}
+.upload-form input[type=file]{width:100%;min-height:48px;padding:9px;border:1px dashed #514653;border-radius:10px;background:#15131b;color:#bcb5c2;font-size:10px}
+.upload-form input[type=file]::file-selector-button{margin-right:10px;padding:8px 11px;border:1px solid #604052;border-radius:7px;background:#30202b;color:#ffd9e4;font-size:10px;font-weight:700;cursor:pointer}
+.upload-submit{display:flex;align-items:center;justify-content:space-between;min-height:47px;margin-top:5px;padding:0 16px;border-radius:11px;font-size:12px}
+@media(max-width:600px){.upload-dialog-heading{margin-bottom:16px;padding-bottom:14px}.upload-promo{gap:10px;padding:12px}.upload-form{gap:12px}.upload-form .field label{font-size:10px}.upload-form input[type=file]{font-size:9px}}
