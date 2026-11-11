@@ -18,8 +18,10 @@ export default async function handler(req,res){
   if(error||!v||!v.published||!v.storage_path)return res.status(404).json({error:"Video unavailable"});
   if(v.is_exclusive){
    if(!user)return res.status(401).json({error:"Login required for exclusive videos"});
-   const {data:p}=await admin.from("profiles").select("subscription_status,subscription_expires_at").eq("id",user.id).maybeSingle();
-   if(!p||p.subscription_status!=="active"||(p.subscription_expires_at&&new Date(p.subscription_expires_at)<=new Date()))return res.status(403).json({error:"Premium membership required"});
+   const {data:p}=await admin.from("profiles").select("role,subscription_status,subscription_expires_at").eq("id",user.id).maybeSingle();
+   const isAdmin=p?.role==="admin";
+   const hasActiveMembership=p?.subscription_status==="active"&&(!p.subscription_expires_at||new Date(p.subscription_expires_at)>new Date());
+   if(!isAdmin&&!hasActiveMembership)return res.status(403).json({error:"Premium membership required"});
   }
   const {data:signed,error:signError}=await admin.storage.from("media-videos").createSignedUrl(v.storage_path,90);
   if(signError)throw signError;
