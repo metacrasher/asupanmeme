@@ -52,8 +52,8 @@ const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:n
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
-const modal = html => {$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
-const closeModal = () => {$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").setAttribute("aria-hidden","true")};
+const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
+const closeModal = () => {const video=$("#videoPlayer video");if(video){video.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").setAttribute("aria-hidden","true")};
 const demoVideos = [
  {id:"demo1",title:"Contoh video pilihan hari ini",description:"Video demo untuk memperlihatkan tampilan katalog.",thumbnail:"",duration:"08:24",views:12400,created_at:new Date().toISOString(),is_exclusive:false,video_url:""},
  {id:"demo2",title:"Koleksi eksklusif — preview",description:"Preview katalog premium. Tambahkan video milikmu melalui database.",thumbnail:"",duration:"12:10",views:8900,created_at:new Date(Date.now()-86400000).toISOString(),is_exclusive:true,video_url:""},
@@ -111,7 +111,23 @@ async function openVideo(id){
  const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;
  if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif. Pilih paket untuk mengajukan langganan.</p><button class="btn btn-primary" id="unlockNow">Lihat paket membership</button>`);$("#unlockNow").onclick=membershipPanel;return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
- modal(`<p class="eyebrow">NOW PLAYING</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div><p>${esc(v.description||"")}</p>`);
+ modal(`<div class="player-page">
+  <div class="player-toolbar">
+   <div class="player-brand">ASUPANMEME <i>/ NOW PLAYING</i></div>
+   <div class="player-actions">
+    <button type="button" class="player-tool" id="videoZoom" aria-pressed="false">↗ Perbesar</button>
+    <button type="button" class="player-tool" id="videoFullscreen">⛶ Layar penuh</button>
+    <button type="button" class="player-close" id="playerClose" aria-label="Tutup pemutar">×</button>
+   </div>
+  </div>
+  <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
+  <div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div>
+  <p class="player-description">${esc(v.description||"")}</p>
+  <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
+ </div>`);
+ $("#modalBackdrop").classList.add("player-mode");
+ $("#mainModal").classList.add("player-modal");
+ $("#playerClose").onclick=closeModal;
  try{
   let playbackUrl=v.video_url;
   if(v.storage_path){
@@ -120,8 +136,25 @@ async function openVideo(id){
    const response=await fetch("/api/playback",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({video_id:v.id})});
    const result=await response.json();if(!response.ok)throw new Error(result.error||"Tidak dapat memutar video.");playbackUrl=result.url;
   }
-  const player=$("#videoPlayer");if(player)player.innerHTML='<video controls playsinline preload="metadata" controlsList="nodownload" src="'+esc(playbackUrl)+'"></video>';
- }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<span class="muted">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</span>';console.error("ASUPANMEME playback:",error)}
+  const player=$("#videoPlayer");
+  if(!player||$("#modalBackdrop").classList.contains("hidden"))return;
+  player.innerHTML='<video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" src="'+esc(playbackUrl)+'"></video>';
+  const video=player.querySelector("video");
+  const zoomButton=$("#videoZoom"),fullscreenButton=$("#videoFullscreen");
+  zoomButton.onclick=()=>{
+   const zoomed=video.classList.toggle("video-zoomed");
+   zoomButton.textContent=zoomed?"↙ Normal":"↗ Perbesar";
+   zoomButton.setAttribute("aria-pressed",String(zoomed));
+  };
+  fullscreenButton.onclick=async()=>{
+   try{
+    if(document.fullscreenElement){await document.exitFullscreen();return}
+    if(player.requestFullscreen)await player.requestFullscreen();
+    else if(video.requestFullscreen)await video.requestFullscreen();
+    else if(video.webkitEnterFullscreen)video.webkitEnterFullscreen();
+   }catch(error){toast("Mode layar penuh tidak tersedia di browser ini.")}
+  };
+ }catch(error){const player=$("#videoPlayer");if(player)player.innerHTML='<div class="player-error">'+esc(error?.message||"Terjadi kesalahan saat menyiapkan video.")+'</div>';console.error("ASUPANMEME playback:",error)}
 }
 async function membershipPanel(){
  if(!state.user){openAccount();toast("Login terlebih dahulu untuk berlangganan.");return}
