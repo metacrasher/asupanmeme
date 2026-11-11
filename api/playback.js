@@ -1,30 +1,46 @@
 import { createClient } from "@supabase/supabase-js";
-const url=process.env.SUPABASE_URL, anon=process.env.SUPABASE_ANON_KEY, service=process.env.SUPABASE_SERVICE_ROLE_KEY;
-const admin=url&&service?createClient(url,service,{auth:{persistSession:false}}):null;
-export default async function handler(req,res){
- if(req.method!=="POST")return res.status(405).json({error:"Method not allowed"});
- if(!admin||!anon)return res.status(500).json({error:"Server configuration incomplete"});
- const token=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
- try{
-  let user=null;
-  if(token){
-   const auth=await fetch(url+"/auth/v1/user",{headers:{apikey:anon,Authorization:"Bearer "+token}});
-   if(!auth.ok)return res.status(401).json({error:"Invalid session"});
-   user=await auth.json();
+
+// The URL and publishable key are public browser credentials, not secrets.
+// Keeping these fallbacks here means playback does not require a service-role
+// key in Vercel. Storage RLS below controls which files can be signed.
+const url = process.env.SUPABASE_URL || "https://icuebwblmzbncnjlzneh.supabase.co";
+const anon = process.env.SUPABASE_ANON_KEY || "sb_publishable_PDuiLlxiv-_M_A7p60kAMw_0gW_07li";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (!url || !anon) return res.status(500).json({ error: "Playback configuration is missing." });
+
+  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  try {
+    const client = createClient(url, anon, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: token ? { headers: { Authorization: "Bearer " + token } } : {}
+    });
+
+    const { video_id } = req.body || {};
+    if (!video_id) return res.status(400).json({ error: "video_id required" });
+
+    // RLS on public.videos and storage.objects verifies publication and access.
+    const { data: video, error: videoError } = await client
+      .from("videos")
+      .select("id, storage_path")
+      .eq("id", video_id)
+      .maybeSingle();
+
+    if (videoError) throw videoError;
+    if (!video || !video.storage_path) {
+      return res.status(404).json({ error: "Video tidak tersedia atau akses membership tidak aktif." });
+    }
+
+    const { data, error } = await client.storage
+      .from("media-videos")
+      .createSignedUrl(video.storage_path, 90);
+
+    if (error) throw error;
+    return res.status(200).json({ url: data.signedUrl });
+  } catch (error) {
+    const message = error?.message || "Playback failed";
+    const status = /JWT|token|auth/i.test(message) ? 401 : 500;
+    return res.status(status).json({ error: message });
   }
-  const {video_id}=req.body||{};
-  if(!video_id)return res.status(400).json({error:"video_id required"});
-  const {data:v,error}=await admin.from("videos").select("id,is_exclusive,published,storage_path").eq("id",video_id).maybeSingle();
-  if(error||!v||!v.published||!v.storage_path)return res.status(404).json({error:"Video unavailable"});
-  if(v.is_exclusive){
-   if(!user)return res.status(401).json({error:"Login required for exclusive videos"});
-   const {data:p}=await admin.from("profiles").select("role,subscription_status,subscription_expires_at").eq("id",user.id).maybeSingle();
-   const isAdmin=p?.role==="admin";
-   const hasActiveMembership=p?.subscription_status==="active"&&(!p.subscription_expires_at||new Date(p.subscription_expires_at)>new Date());
-   if(!isAdmin&&!hasActiveMembership)return res.status(403).json({error:"Premium membership required"});
-  }
-  const {data:signed,error:signError}=await admin.storage.from("media-videos").createSignedUrl(v.storage_path,90);
-  if(signError)throw signError;
-  return res.status(200).json({url:signed.signedUrl});
- }catch(e){return res.status(500).json({error:e.message||"Playback failed"});}
 }
