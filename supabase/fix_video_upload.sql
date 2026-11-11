@@ -78,3 +78,29 @@ with check (
   and is_exclusive = false
   and published = false
 );
+
+ 
+-- Allow signed playback URLs only for published videos the current visitor can see.
+-- This uses the public/publishable key with RLS; no service_role key is required.
+drop policy if exists "Playback signed URLs for visible videos" on storage.objects;
+create policy "Playback signed URLs for visible videos"
+on storage.objects for select to anon, authenticated
+using (
+  bucket_id = 'media-videos'
+  and exists (
+    select 1
+    from public.videos v
+    where v.storage_path = storage.objects.name
+      and v.published = true
+      and (
+        not v.is_exclusive
+        or public.is_admin()
+        or exists (
+          select 1 from public.profiles p
+          where p.id = auth.uid()
+            and p.subscription_status = 'active'
+            and (p.subscription_expires_at is null or p.subscription_expires_at > now())
+        )
+      )
+  )
+);
