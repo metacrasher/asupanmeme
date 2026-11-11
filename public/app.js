@@ -10,7 +10,7 @@ const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
 const modal = html => {$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden")};
-const closeModal = () => $("#modalBackdrop").classList.add("hidden");
+const closeModal = () => {$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal")};
 const demoVideos = [
  {id:"demo1",title:"Contoh video pilihan hari ini",description:"Video demo untuk memperlihatkan tampilan katalog.",thumbnail:"",duration:"08:24",views:12400,created_at:new Date().toISOString(),is_exclusive:false,video_url:""},
  {id:"demo2",title:"Koleksi eksklusif — preview",description:"Preview katalog premium. Tambahkan video milikmu melalui database.",thumbnail:"",duration:"12:10",views:8900,created_at:new Date(Date.now()-86400000).toISOString(),is_exclusive:true,video_url:""},
@@ -25,8 +25,65 @@ function refreshAuth(){$("#accountButton").textContent=state.user?(state.profile
 async function loadVideos(){if(!db){state.videos=demoVideos;renderVideos();return}const {data,error}=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});if(error){toast("Tidak dapat memuat katalog: "+error.message);state.videos=demoVideos}else state.videos=data||[];renderVideos()}
 function hasPremium(){if(state.profile?.role==="admin")return true;return state.profile?.subscription_status==="active" && (!state.profile?.subscription_expires_at || new Date(state.profile.subscription_expires_at)>new Date())}
 function card(v){const locked=v.is_exclusive&&!hasPremium();return `<article class="video-card" data-video="${esc(v.id)}"><div class="thumb">${v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'<div class="thumb-placeholder">A.</div>'}${v.is_exclusive?'<span class="exclusive-tag">✦ EKSKLUSIF</span>':""}<span class="duration">${esc(v.duration||"VIDEO")}</span><button class="save-btn" data-save="${esc(v.id)}" aria-label="Simpan video">${state.saved.has(v.id)?"♥":"♡"}</button>${locked?'<span class="exclusive-tag" style="top:auto;bottom:9px">🔒 MEMBER</span>':""}</div><div class="video-info"><h3>${esc(v.title)}</h3><p>${Number(v.views||0).toLocaleString("id-ID")} views · ${new Date(v.created_at).toLocaleDateString("id-ID")}</p></div></article>`}
-function renderVideos(){let list=[...state.videos];if(state.view==="popular")list.sort((a,b)=>(b.views||0)-(a.views||0));if(state.view==="latest")list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));if(state.view==="exclusive")list=list.filter(v=>v.is_exclusive);if(state.view==="saved")list=list.filter(v=>state.saved.has(v.id));if(state.filter==="free")list=list.filter(v=>!v.is_exclusive);if(state.filter==="exclusive")list=list.filter(v=>v.is_exclusive);if(state.search)list=list.filter(v=>(v.title+" "+(v.description||"")).toLowerCase().includes(state.search));const popular=[...state.videos].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,4);$("#popularGrid").innerHTML=popular.map(card).join("")||'<div class="loading-card">Belum ada video.</div>';$("#videoGrid").innerHTML=list.map(card).join("");$("#videoCount").textContent=list.length+" video tersedia";$("#emptyState").classList.toggle("hidden",list.length>0);$("#pagination").innerHTML="";$$(".video-card").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-save]"))return;openVideo(el.dataset.video)});$$("[data-save]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.save;state.saved.has(id)?state.saved.delete(id):state.saved.add(id);localStorage.setItem("asm_saved",JSON.stringify([...state.saved]));renderVideos()})}
-async function openVideo(id){const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif. Pilih paket untuk mengajukan langganan.</p><button class="btn btn-primary" id="unlockNow">Lihat paket membership</button>`);$("#unlockNow").onclick=membershipPanel;return}if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}modal(`<p class="eyebrow">NOW PLAYING</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div><p>${esc(v.description||"")}</p>`);if(v.storage_path){const {data:{session}}=await db.auth.getSession();const response=await fetch("/api/playback",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({video_id:v.id})});const result=await response.json();if(!response.ok){$("#videoPlayer").innerHTML='<span class="muted">'+esc(result.error||"Tidak dapat memutar video.")+'</span>';return}$("#videoPlayer").innerHTML='<video controls playsinline controlsList="nodownload" src="'+esc(result.url)+'"></video>';}else{$("#videoPlayer").innerHTML='<video controls playsinline controlsList="nodownload" src="'+esc(v.video_url)+'"></video>';}}
+function renderVideos(){
+ let list=[...state.videos];
+ if(state.view==="popular")list.sort((a,b)=>(b.views||0)-(a.views||0));
+ if(state.view==="latest")list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+ if(state.view==="exclusive")list=list.filter(v=>v.is_exclusive);
+ if(state.view==="saved")list=list.filter(v=>state.saved.has(v.id));
+ if(state.filter==="free")list=list.filter(v=>!v.is_exclusive);
+ if(state.filter==="exclusive")list=list.filter(v=>v.is_exclusive);
+ if(state.search)list=list.filter(v=>(v.title+" "+(v.description||"")).toLowerCase().includes(state.search));
+ const popular=[...state.videos].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,4);
+ $("#popularGrid").innerHTML=popular.map(card).join("")||'<div class="loading-card">Belum ada video.</div>';
+ const pageSize=8,totalPages=Math.max(1,Math.ceil(list.length/pageSize));
+ state.page=Math.min(Math.max(1,state.page),totalPages);
+ const start=(state.page-1)*pageSize;
+ const pageItems=list.slice(start,start+pageSize);
+ $("#videoGrid").innerHTML=pageItems.map(card).join("");
+ $("#videoCount").textContent=list.length+" video tersedia";
+ $("#emptyState").classList.toggle("hidden",list.length>0);
+ const pagination=$("#pagination");
+ if(totalPages>1){
+  const pages=Array.from({length:totalPages},(_,i)=>i+1);
+  pagination.innerHTML='<button class="page-btn" data-page="'+(state.page-1)+'" '+(state.page===1?'disabled':'')+'>‹ Sebelumnya</button>'+pages.map(n=>'<button class="page-btn '+(n===state.page?'active':'')+'" data-page="'+n+'" aria-label="Halaman '+n+'" '+(n===state.page?'aria-current="page"':'')+'>'+n+'</button>').join("")+'<button class="page-btn" data-page="'+(state.page+1)+'" '+(state.page===totalPages?'disabled':'')+'>Berikutnya ›</button>';
+ }else pagination.innerHTML="";
+ $(".video-card").forEach(el=>el.onclick=e=>{if(e.target.closest("[data-save]"))return;openVideo(el.dataset.video)});
+ $("[data-save]").forEach(b=>b.onclick=e=>{e.stopPropagation();const id=b.dataset.save;state.saved.has(id)?state.saved.delete(id):state.saved.add(id);localStorage.setItem("asm_saved",JSON.stringify([...state.saved]));renderVideos()});
+}
+function playerRecommendations(currentId){
+ const related=state.videos.filter(x=>String(x.id)!==String(currentId)).slice(0,8);
+ if(!related.length)return "";
+ return '<section class="player-recommendations"><div class="player-recommendation-heading"><h3>Video lainnya</h3><span>'+related.length+' rekomendasi</span></div><div class="recommendation-grid">'+related.map(v=>'<button class="recommendation-card" type="button" data-recommend="'+esc(v.id)+'"><span class="recommendation-thumb">'+(v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'<span>A.</span>')+'</span><span class="recommendation-copy"><b>'+esc(v.title)+'</b><small>'+(v.is_exclusive?'✦ Eksklusif':'Gratis')+' · '+Number(v.views||0).toLocaleString("id-ID")+' views</small></span></button>').join("")+'</div></section>';
+}
+async function openVideo(id){
+ const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;
+ if(v.is_exclusive&&!hasPremium()){
+  modal('<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif.</p><button class="btn btn-primary" id="unlockNow">Lihat membership</button>');
+  $("#unlockNow").onclick=membershipPanel;return;
+ }
+ const recommendations=playerRecommendations(v.id);
+ const playerMarkup='<div class="player-page"><div class="player-toolbar"><span class="player-brand">ASUPANMEME <i> / PLAYER</i></span><button class="player-close" id="playerClose" type="button" aria-label="Tutup pemutar">×</button></div><div class="video-player" id="videoPlayer"><span class="muted">Menyiapkan video...</span></div><div class="player-details"><div><h2 id="modalTitle">'+esc(v.title)+'</h2><p>'+Number(v.views||0).toLocaleString("id-ID")+' views · '+new Date(v.created_at).toLocaleDateString("id-ID")+'</p></div><span class="player-access">'+(v.is_exclusive?'✦ EKSKLUSIF':'GRATIS')+'</span></div>'+(v.description?'<p class="player-description">'+esc(v.description)+'</p>':'')+recommendations+'</div>';
+ modal(playerMarkup);
+ $("#mainModal").classList.add("player-modal");
+ $("#modalBackdrop").classList.add("player-mode");
+ $("#playerClose").onclick=closeModal;
+ $("[data-recommend]").forEach(b=>b.onclick=()=>openVideo(b.dataset.recommend));
+ const player=$("#videoPlayer");
+ if(v.storage_path){
+  try{
+   const {data:{session}}=await db.auth.getSession();
+   const response=await fetch("/api/playback",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({video_id:v.id})});
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Tidak dapat memutar video.");
+   player.innerHTML='<video controls autoplay playsinline preload="metadata" src="'+esc(result.url)+'"></video>';
+  }catch(error){player.innerHTML='<div class="player-error">'+esc(error.message||"Tidak dapat memutar video.")+'</div>'}
+ }else if(v.video_url){
+  player.innerHTML='<video controls autoplay playsinline preload="metadata" src="'+esc(v.video_url)+'"></video>';
+ }else{
+  player.innerHTML='<div class="player-error">Video belum memiliki sumber pemutaran.</div>';
+ }
+}
 async function membershipPanel(){if(!state.user){openAccount();toast("Login terlebih dahulu untuk berlangganan.");return}let plans=[{id:"weekly",name:"Premium 7 Hari",price:5000,duration_days:7},{id:"lifetime",name:"Premium Permanen",price:20000,duration_days:0}];if(db){const {data}=await db.from("subscription_plans").select("*").eq("active",true).order("price");if(data?.length)plans=data}let payment={};if(db){const {data}=await db.from("site_settings").select("key,value").in("key",["payment_instructions","payment_account"]);(data||[]).forEach(x=>payment[x.key]=x.value)}modal(`<p class="eyebrow">ASUPANMEME MEMBERSHIP</p><h2 id="modalTitle">Pilih akses premium</h2><p>Nikmati video eksklusif setelah pembayaran diverifikasi admin. Premium 7 hari berakhir otomatis setelah masa aktif habis; paket permanen tidak kedaluwarsa.</p><div class="plans">${plans.map(p=>'<div class="plan '+(p.id==="quarterly"?"featured":"")+'"><h3>'+esc(p.name)+'</h3><strong>'+money(p.price)+'</strong><p>'+(Number(p.duration_days)===0?"Akses permanen tanpa kedaluwarsa":'Akses selama '+(p.duration_days||7)+' hari')+'</p><button class="btn btn-primary" data-plan="'+esc(p.id)+'">Pilih paket</button></div>').join("")}</div><section class="qris-payment"><h3>Pembayaran QRIS</h3><p>Scan QRIS di bawah melalui aplikasi mobile banking atau e-wallet. Pastikan nominal sesuai paket yang dipilih.</p><img src="/qris.png" alt="QRIS pembayaran ASUPANMEME" loading="lazy"><small>Nama merchant pada QRIS: FAD STORE - GAME. Periksa nama merchant sebelum membayar.</small></section><div class="field"><label>Instruksi pembayaran dari admin</label><textarea readonly rows="3">${esc(payment.payment_instructions||"Admin belum mengatur instruksi pembayaran. Silakan hubungi admin situs.")}${payment.payment_account?"\n"+payment.payment_account:""}</textarea></div><p class="muted">Setelah transfer, unggah bukti pembayaran di formulir berikutnya. Jangan unggah PIN, password, atau data kartu.</p>`);$$("[data-plan]").forEach(b=>b.onclick=()=>paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan)))}
 function paymentPanel(plan){if(!plan)return;modal(`<p class="eyebrow">PAYMENT SUBMISSION</p><h2 id="modalTitle">Kirim bukti pembayaran</h2><p>Paket: <b>${esc(plan.name)}</b> · <b>${money(plan.price)}</b></p><form class="form-stack" id="paymentForm"><div class="field"><label>Nama pengirim</label><input name="sender" required maxlength="100"></div><div class="field"><label>Metode pembayaran</label><select name="method"><option selected>QRIS</option><option>Transfer bank</option><option>E-wallet</option><option>Lainnya</option></select></div><div class="field"><label>Catatan (opsional)</label><input name="note" maxlength="200" placeholder="Contoh: transfer pukul 14.00"></div><div class="field"><label>Foto bukti transfer (JPG, PNG, WEBP maks. 5 MB)</label><input name="proof" type="file" accept="image/jpeg,image/png,image/webp" required></div><button class="btn btn-primary">Kirim untuk verifikasi</button></form>`);$("#paymentForm").onsubmit=async e=>{e.preventDefault();if(!db){toast("Supabase belum dikonfigurasi.");return}const f=new FormData(e.currentTarget),file=f.get("proof");if(!file||file.size>5*1024*1024){toast("Pilih gambar maksimal 5 MB.");return}const ext=file.name.split(".").pop().toLowerCase();if(!["jpg","jpeg","png","webp"].includes(ext)){toast("Format gambar tidak didukung.");return}const path=state.user.id+"/"+crypto.randomUUID()+"."+ext;const {error:upErr}=await db.storage.from("payment-proofs").upload(path,file,{contentType:file.type,upsert:false});if(upErr){toast("Upload gagal: "+upErr.message);return}const {error}=await db.from("payment_submissions").insert({user_id:state.user.id,plan_id:plan.id,plan_name:plan.name,amount:plan.price,sender_name:f.get("sender"),payment_method:f.get("method"),note:f.get("note"),proof_path:path,status:"pending"});if(error){toast("Pengiriman gagal: "+error.message);return}closeModal();toast("Bukti terkirim. Tunggu verifikasi admin.");}}
 
@@ -67,9 +124,10 @@ async function adminPanel(){
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
 function nav(view){state.view=view;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel()}});
-$$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
-$("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();renderVideos()};
-$("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));renderVideos()};
+$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
+$("#pagination").onclick=e=>{const b=e.target.closest("[data-page]");if(!b||b.disabled)return;state.page=Number(b.dataset.page);renderVideos();$("#videoGrid").scrollIntoView({behavior:"smooth",block:"start"})};
+$("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();state.page=1;renderVideos()};
+$("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));state.page=1;renderVideos()};
 const sidebar=$("#sidebar"),sidebarOverlay=$("#sidebarOverlay");
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
 function toggleSidebar(){const opening=!sidebar.classList.contains("open");sidebar.classList.toggle("open",opening);sidebarOverlay.classList.toggle("visible",opening);document.body.classList.toggle("sidebar-open",opening)}
