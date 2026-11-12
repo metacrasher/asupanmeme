@@ -323,3 +323,6 @@
 .upload-form input[type=file]::file-selector-button{margin-right:10px;padding:8px 11px;border:1px solid #604052;border-radius:7px;background:#30202b;color:#ffd9e4;font-size:10px;font-weight:700;cursor:pointer}
 .upload-submit{display:flex;align-items:center;justify-content:space-between;min-height:47px;margin-top:5px;padding:0 16px;border-radius:11px;font-size:12px}
 @media(max-width:600px){.upload-dialog-heading{margin-bottom:16px;padding-bottom:14px}.upload-promo{gap:10px;padding:12px}.upload-form{gap:12px}.upload-form .field label{font-size:10px}.upload-form input[type=file]{font-size:9px}}
+
+/* Keep the mobile menu control above the slide overlay so it can always be opened or closed. */
+@media(max-width:800px){.mobile-menu{position:relative;z-index:22;pointer-events:auto;touch-action:manipulation;min-width:42px;min-height:42px}}
