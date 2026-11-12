@@ -7,6 +7,11 @@ alter table public.subscription_plans
 alter table public.subscription_plans
   add constraint subscription_plans_duration_days_check check (duration_days >= 0);
 
+-- Keep the existing UI's published lifetime price and make the plan available.
+insert into public.subscription_plans(id, name, price, duration_days, active)
+values ('lifetime', 'Premium Permanen', 20000, 0, true)
+on conflict (id) do nothing;
+
 -- Replace the review function so approving a lifetime plan stores NULL expiry.
 -- Existing admin authorization and one-time review protections are retained.
 create or replace function public.review_payment(
