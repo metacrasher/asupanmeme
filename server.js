@@ -8,9 +8,20 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 app.use(express.json({ limit: "2mb" }));
 
-// Serve the ASUPANMEME website at the root URL.
-app.use(express.static(rootDir));
+// Serve the current source assets without allowing an old browser/CDN copy
+// of app.js or styles.css to survive a production update.
+app.use(express.static(rootDir, {
+  etag: false,
+  lastModified: false,
+  setHeaders(res) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+}));
+
 app.get("/", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.sendFile(path.join(rootDir, "index.html"));
 });
 
