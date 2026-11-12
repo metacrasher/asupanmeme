@@ -49,9 +49,6 @@ const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.s
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
 // Use an isolated anonymous client for the published catalog so a logged-in
 // member's JWT/RLS context cannot accidentally hide public video rows.
-const catalogDb = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{
-  auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
-}) : null;
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
 const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 let dashboardBackGuard=false;
