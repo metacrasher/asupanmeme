@@ -59,7 +59,7 @@ window.addEventListener("popstate",()=>{
 });
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
+const toast = msg => {const region=$("#toastRegion");if(!region)return;const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=msg;region.append(el);requestAnimationFrame(()=>el.classList.add("toast-visible"));setTimeout(()=>{el.classList.remove("toast-visible");setTimeout(()=>el.remove(),220)},4200)};
 const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal","auth-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
 const closeModal = (fromHistory=false) => {
  const wasPlayer=$("#modalBackdrop").classList.contains("player-mode");
@@ -393,20 +393,32 @@ async function uploadPanel(){
    multipartUploadId=created.uploadId;
    const partSize=10*1024*1024;
    const completedParts=[];
-   for(let index=0;index<created.parts.length;index++){
-    const part=created.parts[index];
-    const from=index*partSize;
-    const chunk=video.slice(from,Math.min(from+partSize,video.size));
-    btn.textContent="Mengunggah bagian "+(index+1)+"/"+created.parts.length+"...";
-    const partResponse=await fetch(part.url,{method:"PUT",body:chunk});
-    if(!partResponse.ok){
-     const detail=await partResponse.text().catch(()=>"");
-     throw new Error("Bagian "+(index+1)+" gagal diunggah (HTTP "+partResponse.status+"). "+detail.slice(0,220));
+   // Upload up to three R2 parts concurrently to reduce total waiting time
+   // while keeping memory/network usage bounded on mobile devices.
+   let completedCount=0;
+   const partResults=new Array(created.parts.length);
+   let nextPartIndex=0;
+   const uploadWorker=async()=>{
+    while(true){
+     const index=nextPartIndex++;
+     if(index>=created.parts.length)return;
+     const part=created.parts[index];
+     const from=index*partSize;
+     const chunk=video.slice(from,Math.min(from+partSize,video.size));
+     const partResponse=await fetch(part.url,{method:"PUT",body:chunk});
+     if(!partResponse.ok){
+      const detail=await partResponse.text().catch(()=>"");
+      throw new Error("Bagian "+(index+1)+" gagal diunggah (HTTP "+partResponse.status+"). "+detail.slice(0,220));
+     }
+     const etag=partResponse.headers.get("ETag");
+     if(!etag)throw new Error("Dahono tidak mengirim header ETag untuk bagian "+(index+1)+". Bucket perlu mengizinkan expose header ETag pada CORS.");
+     partResults[index]={PartNumber:part.partNumber,ETag:etag};
+     completedCount++;
+     btn.textContent="Mengunggah video "+Math.round(completedCount/created.parts.length*100)+"% ("+completedCount+"/"+created.parts.length+")";
     }
-    const etag=partResponse.headers.get("ETag");
-    if(!etag)throw new Error("Dahono tidak mengirim header ETag untuk bagian "+(index+1)+". Bucket perlu mengizinkan expose header ETag pada CORS.");
-    completedParts.push({PartNumber:part.partNumber,ETag:etag});
-   }
+   };
+   await Promise.all(Array.from({length:Math.min(3,created.parts.length)},()=>uploadWorker()));
+   completedParts.push(...partResults);
    btn.textContent="Menyelesaikan upload...";
    await multipartRequest({action:"complete",key:r2Key,uploadId:multipartUploadId,parts:completedParts});
    multipartCompleted=true;
@@ -430,7 +442,7 @@ async function uploadPanel(){
     uploader_id:state.user?.id||null
    });
    if(dbErr)throw new Error("Video sudah terunggah, tetapi data katalog gagal disimpan: "+dbErr.message);
-   closeModal();toast(admin?"Video admin berhasil diunggah dan ditayangkan.":"Video berhasil dikirim dan menunggu persetujuan admin.");await loadVideos();
+   closeModal();toast(admin?"Berhasil menambahkan video. Video sudah ditayangkan.":"Berhasil menambahkan video. Kiriman menunggu persetujuan admin.");await loadVideos();
   }catch(error){
    if(multipartUploadId&&r2Key){
     try{await multipartRequest({action:"abort",key:r2Key,uploadId:multipartUploadId})}catch(abortError){console.error("ASUPANMEME multipart abort:",abortError)}
