@@ -22,8 +22,31 @@ async function tg(method, body) {
   if (!result.ok) throw new Error(result.description || "Telegram API error");
   return result.result;
 }
+function escapeHtml(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formatMessage(value) {
+  const lines = String(value ?? "").split("\n");
+  return lines.map((line, index) => {
+    const safe = escapeHtml(line);
+    if (!line.trim()) return "";
+    if (index === 0) return `<b>${safe}</b>`;
+    if (/^(VIDEO|MEMBERSHIP|PEMBAYARAN|STATISTIK|LAINNYA|PENGGUNA|DETAIL VIDEO)$/i.test(line.trim())) {
+      return `\n<b>${safe}</b>`;
+    }
+    return safe;
+  }).join("\n");
+}
+
 async function send(chatId, text, extra = {}) {
-  return tg("sendMessage", { chat_id: chatId, text, ...extra });
+  return tg("sendMessage", {
+    chat_id: chatId,
+    text: formatMessage(text),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+    ...extra
+  });
 }
 async function session(chatId) {
   const { data, error } = await db.from("telegram_bot_sessions").select("*").eq("chat_id", chatId).maybeSingle();
