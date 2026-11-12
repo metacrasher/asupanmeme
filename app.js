@@ -342,13 +342,12 @@ function paymentPanel(plan){
  };
 }
 async function uploadPanel(){
- if(!state.user){openAccount();toast("Login terlebih dahulu.");return}
  const isAdmin=state.profile?.role==="admin";
- modal(`<div class="upload-dialog"><div class="upload-dialog-heading"><span class="upload-kicker">ASUPANMEME CREATOR STUDIO</span><h2 id="modalTitle">Upload video</h2><p>${isAdmin?"Terbitkan konten baru dan atur akses penayangannya.":"Bagikan video pilihanmu kepada komunitas ASUPANMEME."}</p></div><div class="upload-promo"><div class="upload-promo-mark">✦</div><div><strong>Bagikan konten berkualitas</strong><p>Unggah video gratis untuk komunitas. Kontributor yang aktif dan rutin berbagi berkesempatan mendapatkan penawaran akses eksklusif dari admin.</p><small>Video akan ditayangkan setelah proses upload berhasil.</small></div></div><form class="form-stack upload-form" id="videoUploadForm"><div class="upload-section-label">INFORMASI VIDEO</div><div class="field"><label>Judul video</label><input name="title" required maxlength="120" placeholder="Judul video"></div><div class="field"><label>Deskripsi <span class="field-optional">OPSIONAL</span></label><textarea name="description" rows="3" maxlength="1000" placeholder="Deskripsi video (opsional)"></textarea></div><div class="field"><label>File video <span>MP4, WEBM, MOV · MAKS. 500 MB</span></label><input name="video" type="file" accept="video/mp4,video/webm,video/quicktime" required></div><div class="field"><label>Thumbnail <span class="field-optional">OPSIONAL · JPG/PNG/WEBP · MAKS. 5 MB</span></label><input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"></div>${isAdmin?'<div class="field"><label>Akses video</label><select name="access"><option value="free">Gratis</option><option value="exclusive">Eksklusif</option></select></div>':'<div class="field"><label>Akses video</label><input value="Gratis (wajib)" disabled></div>'}<button class="btn btn-primary upload-submit" type="submit"><span>Upload video</span><span aria-hidden="true">↗</span></button></form></div>`);
+ modal(`<div class="upload-dialog"><div class="upload-dialog-heading"><span class="upload-kicker">ASUPANMEME CREATOR STUDIO</span><h2 id="modalTitle">Upload video</h2><p>${isAdmin?"Terbitkan konten baru dan atur akses penayangannya.":"Kirim video untuk ditinjau admin sebelum ditayangkan."}</p></div><div class="upload-promo"><div class="upload-promo-mark">✦</div><div><strong>Bagikan konten berkualitas</strong><p>Unggah video gratis untuk komunitas. Kontributor yang aktif dan rutin berbagi berkesempatan mendapatkan penawaran akses eksklusif dari admin.</p><small>${isAdmin?"Video admin dapat langsung ditayangkan.":"Video akan diperiksa admin terlebih dahulu sebelum muncul di katalog."}</small></div></div><form class="form-stack upload-form" id="videoUploadForm"><div class="upload-section-label">INFORMASI VIDEO</div><div class="field"><label>Judul video</label><input name="title" required maxlength="120" placeholder="Judul video"></div><div class="field"><label>Deskripsi <span class="field-optional">OPSIONAL</span></label><textarea name="description" rows="3" maxlength="1000" placeholder="Deskripsi video (opsional)"></textarea></div><div class="field"><label>File video <span>MP4, WEBM, MOV · MAKS. 500 MB</span></label><input name="video" type="file" accept="video/mp4,video/webm,video/quicktime" required></div><div class="field"><label>Thumbnail <span class="field-optional">OPSIONAL · JPG/PNG/WEBP · MAKS. 5 MB</span></label><input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"></div>${isAdmin?'<div class="field"><label>Akses video</label><select name="access"><option value="free">Gratis</option><option value="exclusive">Eksklusif</option></select></div>':'<div class="field"><label>Akses video</label><input value="Gratis (wajib)" disabled></div>'}<button class="btn btn-primary upload-submit" type="submit"><span>Upload video</span><span aria-hidden="true">↗</span></button></form></div>`);
  $("#videoUploadForm").onsubmit=async e=>{
   e.preventDefault();
   const form=e.currentTarget,f=new FormData(form),video=f.get("video"),thumb=f.get("thumbnail");
-  if(!db||!state.user){toast("Silakan login ulang.");return}
+  if(!db){toast("Layanan upload belum terhubung.");return}
   const allowedTypes=["video/mp4","video/webm","video/quicktime"];
   if(!video||!allowedTypes.includes(video.type)||video.size>500*1024*1024){toast("Pilih video MP4, WEBM, atau MOV maksimal 500 MB.");return}
   if(thumb?.size>5*1024*1024){toast("Thumbnail maksimal 5 MB.");return}
@@ -359,16 +358,17 @@ async function uploadPanel(){
   let multipartCompleted=false;
   let thumbnailPath=null;
   let uploadToken=null;
+  let uploadOwner=state.user?.id||("public");
   const multipartRequest=async(payload)=>{
-   const response=await fetch("/api/r2-multipart",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify(payload)});
+   const headers={"content-type":"application/json",...(uploadToken?{Authorization:"Bearer "+uploadToken}:{})};
+   const response=await fetch("/api/r2-multipart",{method:"POST",headers,body:JSON.stringify(payload)});
    const result=await response.json().catch(()=>({error:"Respons server tidak valid."}));
    if(!response.ok)throw new Error(result.error||"Permintaan multipart upload gagal (HTTP "+response.status+").");
    return result;
   };
   try{
    const sessionResult=await db.auth.getSession();
-   uploadToken=sessionResult.data?.session?.access_token;
-   if(!uploadToken)throw new Error("Sesi login berakhir. Silakan login kembali.");
+   uploadToken=sessionResult.data?.session?.access_token||null;
    const created=await multipartRequest({action:"create",filename:video.name,content_type:video.type,size:video.size});
    r2Key=created.key;
    multipartUploadId=created.uploadId;
@@ -395,7 +395,7 @@ async function uploadPanel(){
    let thumbnail_url=null;
    if(thumb?.size){
     const tExt=(thumb.name.split(".").pop()||"jpg").toLowerCase();
-    thumbnailPath=state.user.id+"/thumb-"+crypto.randomUUID()+"."+tExt;
+    thumbnailPath=(state.user?.id||"public")+"/thumb-"+crypto.randomUUID()+"."+tExt;
     const {error:tErr}=await db.storage.from("video-thumbnails").upload(thumbnailPath,thumb,{contentType:thumb.type,upsert:false});
     if(!tErr){const {data:pub}=db.storage.from("video-thumbnails").getPublicUrl(thumbnailPath);thumbnail_url=pub.publicUrl}
    }
@@ -408,16 +408,16 @@ async function uploadPanel(){
     storage_provider:"r2",
     thumbnail_url,
     is_exclusive:access,
-    published:true,
-    uploader_id:state.user.id
+    published:admin,
+    uploader_id:state.user?.id||null
    });
    if(dbErr)throw new Error("Video sudah terunggah, tetapi data katalog gagal disimpan: "+dbErr.message);
-   closeModal();toast("Video berhasil diunggah ke Dahono dan ditayangkan.");await loadVideos();
+   closeModal();toast(admin?"Video admin berhasil diunggah dan ditayangkan.":"Video berhasil dikirim dan menunggu persetujuan admin.");await loadVideos();
   }catch(error){
-   if(multipartUploadId&&r2Key&&uploadToken){
+   if(multipartUploadId&&r2Key){
     try{await multipartRequest({action:"abort",key:r2Key,uploadId:multipartUploadId})}catch(abortError){console.error("ASUPANMEME multipart abort:",abortError)}
    }
-   if(r2Key&&multipartCompleted){
+   if(r2Key&&multipartCompleted&&uploadToken){
     try{await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify({key:r2Key})})}catch(_){}
    }
    if(thumbnailPath)await db.storage.from("video-thumbnails").remove([thumbnailPath]).catch(()=>{});
