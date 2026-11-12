@@ -88,16 +88,20 @@ async function accountPanel(){
  <section class="payment-history" style="margin:18px 0;padding:18px;border:1px solid #37313b;border-radius:14px;background:rgba(255,255,255,.025)">
   <p class="eyebrow">STATUS AKUN</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Membership</h3><span class="status-pill ${membership.kind}">${esc(membership.label)}</span></div><p class="muted" style="margin:8px 0 0">${esc(membership.detail)}</p>
  </section>
- <div class="form-stack"><button class="btn btn-primary" id="uploadOpen">Upload video</button><button class="btn btn-ghost" id="myMembership">Kelola membership</button>${state.profile?.role==="admin"?'<button class="btn btn-ghost" id="adminOpen">Dashboard admin</button>':""}<button class="btn btn-ghost" id="logoutBtn">Keluar</button></div>
- <section class="payment-history"><h3>Riwayat transaksi</h3><p class="muted">Semua pengajuan pembayaran tercatat di sini. Status akan diperbarui setelah admin memeriksa bukti transfer.</p><div id="myPaymentHistory"><p class="muted">Memuat riwayat transaksi...</p></div></section>`);
+ <div class="form-stack"><button class="btn btn-primary" id="uploadOpen">Upload video</button><button class="btn btn-ghost" id="myMembership">Kelola membership</button>${state.profile?.role==="admin"?'<button class="btn btn-ghost" id="adminOpen">Dashboard admin</button>':""}<button class="btn btn-ghost" id="logoutBtn">Keluar</button></div>`);
  $("#uploadOpen").onclick=uploadPanel;$("#myMembership").onclick=membershipPanel;
  if($("#adminOpen"))$("#adminOpen").onclick=adminPanel;
  $("#logoutBtn").onclick=async()=>{await db?.auth.signOut();state.user=null;state.profile=null;closeModal();refreshAuth();toast("Kamu sudah keluar.")};
+}
+async function transactionHistoryPanel(){
+ if(!state.user){openAccount();toast("Silakan masuk untuk melihat riwayat transaksi.");return}
+ protectDashboardBack();
+ modal(`<p class="eyebrow">PAYMENT RECORDS</p><h2 id="modalTitle">Riwayat transaksi</h2><p class="muted">Riwayat pengajuan pembayaran dan hasil pemeriksaan admin.</p><div id="myPaymentHistory"><p class="muted">Memuat riwayat transaksi...</p></div>`);
  const target=$("#myPaymentHistory");
  if(!db){target.innerHTML='<p class="muted">Riwayat transaksi memerlukan koneksi database.</p>';return}
  const {data,error}=await db.from("payment_submissions").select("id,plan_name,amount,payment_method,status,admin_note,created_at,reviewed_at").eq("user_id",state.user.id).order("created_at",{ascending:false}).limit(50);
- if(error){target.innerHTML='<p class="muted">Riwayat belum dapat dimuat. Coba buka kembali menu akun.</p>';return}
- target.innerHTML=(data||[]).map(paymentStatusMarkup).join("")||'<p class="muted">Belum ada transaksi. Pilih paket membership untuk memulai.</p>';
+ if(error){target.innerHTML='<p class="muted">Riwayat belum dapat dimuat. Coba buka kembali menu ini.</p>';return}
+ target.innerHTML=(data||[]).map(paymentStatusMarkup).join("")||'<p class="muted">Belum ada transaksi.</p>';
 }
 function paymentStatusMarkup(row){
  const labels={pending:"Menunggu verifikasi",approved:"Diterima admin",rejected:"Ditolak admin"};
