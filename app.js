@@ -47,6 +47,11 @@ document.addEventListener("click", (event) => {
 const cfg = window.APP_CONFIG || {};
 const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
+// Use an isolated anonymous client for the published catalog so a logged-in
+// member's JWT/RLS context cannot accidentally hide public video rows.
+const catalogDb = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{
+  auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+}) : null;
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
 const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 let dashboardBackGuard=false;
@@ -87,10 +92,17 @@ function paymentStatusMarkup(row){
 }
 function refreshAuth(){$("#accountButton").textContent=state.user?(state.profile?.username||state.profile?.display_name||state.user.email||"U").slice(0,1).toUpperCase():"?";renderVideos()}
 async function loadVideos(){
- if(!db){state.videos=demoVideos;renderVideos();return}
- try{let result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});if(result.error?.code==="42703")result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});if(result.error)throw result.error;state.videos=result.data||[]}
- catch(error){console.error("ASUPANMEME loadVideos:",error);state.videos=[];toast("Katalog gagal dimuat: "+(error?.message||"Periksa koneksi dan kebijakan database."))}
- finally{renderVideos()}
+ if(!catalogDb){state.videos=demoVideos;renderVideos();return}
+ try{
+  let result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
+  if(result.error?.code==="42703")result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
+  if(result.error)throw result.error;
+  state.videos=result.data||[];
+ }catch(error){
+  console.error("ASUPANMEME loadVideos:",error);
+  state.videos=[];
+  toast("Katalog gagal dimuat: "+(error?.message||"Periksa koneksi dan kebijakan database."));
+ }finally{renderVideos()}
 }
 function hasPremium(){if(state.profile?.role==="admin")return true;return state.profile?.subscription_status==="active" && (!state.profile?.subscription_expires_at || new Date(state.profile.subscription_expires_at)>new Date())}
 function card(v){
@@ -457,6 +469,6 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeS
 // Age-gate clicks are handled by the early delegated listener above.
 try{if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classList.add("hidden")}catch(_){}
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
-async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
+async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth();await loadVideos()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
 })();
 /* ASUPANMEME production asset refresh: 2026-11-12 — source aligned with latest GitHub features. */
