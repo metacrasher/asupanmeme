@@ -13,7 +13,8 @@ const PART_SIZE = 10 * 1024 * 1024;
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   const auth = await authenticate(req);
-  if (auth.error) return res.status(auth.status).json({ error: auth.error });
+  const userId = auth.user?.id || null;
+  const ownerPrefix = userId || "public";
 
   const s3 = createDahonoClient();
   const bucket = process.env.DAHONO_S3_BUCKET;
@@ -33,7 +34,7 @@ export default async function handler(req, res) {
       }
 
       const ext = String(filename || "").split(".").pop().toLowerCase().replace(/[^a-z0-9]/g, "") || "mp4";
-      const key = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
+      const key = `${ownerPrefix}/${crypto.randomUUID()}.${ext}`;
       const created = await s3.send(new CreateMultipartUploadCommand({
         Bucket: bucket,
         Key: key,
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
 
     if (action === "complete") {
       const { key, uploadId, parts } = body;
-      if (typeof key !== "string" || !key.startsWith(auth.user.id + "/") ||
+      if (typeof key !== "string" || !(userId ? key.startsWith(userId + "/") : /^public\/[0-9a-f-]+\.[a-z0-9]+$/i.test(key)) ||
           typeof uploadId !== "string" || !Array.isArray(parts) || parts.length < 1 || parts.length > 100) {
         return res.status(400).json({ error: "Data penyelesaian upload tidak valid." });
       }
@@ -89,7 +90,7 @@ export default async function handler(req, res) {
 
     if (action === "abort") {
       const { key, uploadId } = body;
-      if (typeof key !== "string" || !key.startsWith(auth.user.id + "/") || typeof uploadId !== "string") {
+      if (typeof key !== "string" || !(userId ? key.startsWith(userId + "/") : /^public\/[0-9a-f-]+\.[a-z0-9]+$/i.test(key)) || typeof uploadId !== "string") {
         return res.status(400).json({ error: "Data pembatalan upload tidak valid." });
       }
       await s3.send(new AbortMultipartUploadCommand({
