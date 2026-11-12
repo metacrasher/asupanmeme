@@ -368,7 +368,10 @@ async function uploadPanel(){
   };
   try{
    const sessionResult=await db.auth.getSession();
-   uploadToken=sessionResult.data?.session?.access_token||null;
+   const sessionToken=sessionResult.data?.session?.access_token||null;
+   const admin=state.profile?.role==="admin";
+   // Community submissions always use the public/ review namespace, even when signed in.
+   uploadToken=admin?sessionToken:null;
    const created=await multipartRequest({action:"create",filename:video.name,content_type:video.type,size:video.size});
    r2Key=created.key;
    multipartUploadId=created.uploadId;
@@ -395,11 +398,10 @@ async function uploadPanel(){
    let thumbnail_url=null;
    if(thumb?.size){
     const tExt=(thumb.name.split(".").pop()||"jpg").toLowerCase();
-    thumbnailPath=(state.user?.id||"public")+"/thumb-"+crypto.randomUUID()+"."+tExt;
+    thumbnailPath=(admin&&state.user?.id?state.user.id:"public")+"/thumb-"+crypto.randomUUID()+"."+tExt;
     const {error:tErr}=await db.storage.from("video-thumbnails").upload(thumbnailPath,thumb,{contentType:thumb.type,upsert:false});
     if(!tErr){const {data:pub}=db.storage.from("video-thumbnails").getPublicUrl(thumbnailPath);thumbnail_url=pub.publicUrl}
    }
-   const admin=state.profile?.role==="admin";
    const access=admin&&f.get("access")==="exclusive";
    const {error:dbErr}=await db.from("videos").insert({
     title:String(f.get("title")).trim(),
