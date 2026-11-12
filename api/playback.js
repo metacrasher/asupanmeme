@@ -37,8 +37,25 @@ export default async function handler(req, res) {
       .eq("id", video_id)
       .maybeSingle();
     if (videoError) throw videoError;
-    if (!video || !video.storage_path || !video.published) {
+    if (!video || !video.storage_path) {
       return res.status(404).json({ error: "Video tidak tersedia." });
+    }
+
+    // Unpublished submissions can only be previewed by an authenticated admin.
+    if (!video.published) {
+      if (!req.body?.admin_preview || !token) {
+        return res.status(404).json({ error: "Video tidak tersedia." });
+      }
+      const { data: adminData, error: adminAuthError } = await client.auth.getUser(token);
+      if (adminAuthError || !adminData?.user) {
+        return res.status(401).json({ error: "Sesi login tidak valid." });
+      }
+      const { data: adminProfile, error: adminProfileError } = await client
+        .from("profiles").select("role").eq("id", adminData.user.id).maybeSingle();
+      if (adminProfileError) throw adminProfileError;
+      if (adminProfile?.role !== "admin") {
+        return res.status(403).json({ error: "Preview hanya tersedia untuk admin." });
+      }
     }
 
     // Enforce exclusive membership server-side before signing an Dahono URL.
