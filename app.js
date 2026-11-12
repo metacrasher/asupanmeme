@@ -92,16 +92,26 @@ function paymentStatusMarkup(row){
 }
 function refreshAuth(){$("#accountButton").textContent=state.user?(state.profile?.username||state.profile?.display_name||state.user.email||"U").slice(0,1).toUpperCase():"?";renderVideos()}
 async function loadVideos(){
- if(!catalogDb){state.videos=demoVideos;renderVideos();return}
+ if(!db){state.videos=demoVideos;renderVideos();return}
  try{
-  let result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
-  if(result.error?.code==="42703")result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
-  if(result.error)throw result.error;
-  state.videos=result.data||[];
+  // Use the active session: anon visitors see public videos, while signed-in
+  // members/admins are evaluated by the matching Supabase RLS policies.
+  const runQuery=async()=>{
+   let result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
+   if(result.error?.code==="42703")result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
+   if(result.error)throw result.error;
+   return result.data||[];
+  };
+  let timeoutId;
+  const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Waktu tunggu katalog habis. Periksa koneksi Supabase dan kebijakan RLS.")),15000)});
+  try{state.videos=await Promise.race([runQuery(),timeout]);}
+  finally{clearTimeout(timeoutId)}
+  state.catalogError=null;
  }catch(error){
   console.error("ASUPANMEME loadVideos:",error);
-  state.videos=[];
-  toast("Katalog gagal dimuat: "+(error?.message||"Periksa koneksi dan kebijakan database."));
+  state.catalogError=error?.message||"Periksa koneksi dan kebijakan database.";
+  // Keep any previously loaded catalog instead of making existing videos vanish.
+  toast("Katalog gagal dimuat: "+state.catalogError);
  }finally{renderVideos()}
 }
 function hasPremium(){if(state.profile?.role==="admin")return true;return state.profile?.subscription_status==="active" && (!state.profile?.subscription_expires_at || new Date(state.profile.subscription_expires_at)>new Date())}
