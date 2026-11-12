@@ -459,3 +459,4 @@ try{if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classLi
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
 async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
 })();
+/* ASUPANMEME production asset refresh: 2026-11-12 — source aligned with latest GitHub features. */
