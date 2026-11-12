@@ -18,7 +18,7 @@ with check (
 -- Anonymous thumbnails are isolated under the public/ folder.
 drop policy if exists "Public can upload review thumbnails" on storage.objects;
 create policy "Public can upload review thumbnails" on storage.objects
-for insert to anon
+for insert to anon, authenticated
 with check (bucket_id = 'video-thumbnails' and (storage.foldername(name))[1] = 'public');
 
 -- Public thumbnails can be displayed after admin approves the video.
