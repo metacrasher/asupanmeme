@@ -10,8 +10,7 @@ document.addEventListener("click", event => {
  if(target.closest("#modalClose,.modal-close,[data-close-modal]")){
   event.preventDefault();
   event.stopImmediatePropagation();
-  const backdrop=document.getElementById("modalBackdrop");
-  if(backdrop){backdrop.classList.add("hidden");backdrop.setAttribute("aria-hidden","true")}
+  if(typeof closeModal==="function")closeModal();
   return;
  }
  if(target.closest("#menuToggle,[data-toggle-sidebar]")){
@@ -52,13 +51,28 @@ const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABA
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
 const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 let dashboardBackGuard=false;
+let playerHistoryOpen=false;
 function protectDashboardBack(){dashboardBackGuard=true;history.pushState({asmDashboardGuard:true},"",location.href);}
-window.addEventListener("popstate",()=>{if(dashboardBackGuard&&!$("#modalBackdrop")?.classList.contains("hidden"))history.pushState({asmDashboardGuard:true},"",location.href);});
+window.addEventListener("popstate",()=>{
+ if(playerHistoryOpen){playerHistoryOpen=false;closeModal(true);return}
+ if(dashboardBackGuard&&!$("#modalBackdrop")?.classList.contains("hidden"))history.pushState({asmDashboardGuard:true},"",location.href);
+});
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
 const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal","auth-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
-const closeModal = () => {dashboardBackGuard=false;const video=$("#videoPlayer video");if(video){video.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").setAttribute("aria-hidden","true")};
+const closeModal = (fromHistory=false) => {
+ const wasPlayer=$("#modalBackdrop").classList.contains("player-mode");
+ dashboardBackGuard=false;
+ const video=$("#videoPlayer video");
+ if(video){video.pause();video.removeAttribute("src");video.load()}
+ if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+ $("#modalBackdrop").classList.remove("player-mode");
+ $("#mainModal").classList.remove("player-modal");
+ $("#modalBackdrop").classList.add("hidden");
+ $("#modalBackdrop").setAttribute("aria-hidden","true");
+ if(wasPlayer&&playerHistoryOpen&&!fromHistory){playerHistoryOpen=false;history.back()}
+};
 const demoVideos = [
  {id:"demo1",title:"Contoh video pilihan hari ini",description:"Video demo untuk memperlihatkan tampilan katalog.",thumbnail:"",duration:"08:24",views:12400,created_at:new Date().toISOString(),is_exclusive:false,video_url:""},
  {id:"demo2",title:"Koleksi eksklusif — preview",description:"Preview katalog premium. Tambahkan video milikmu melalui database.",thumbnail:"",duration:"12:10",views:8900,created_at:new Date(Date.now()-86400000).toISOString(),is_exclusive:true,video_url:""},
@@ -200,7 +214,8 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
  </div>`);
  $("#modalBackdrop").classList.add("player-mode");
  $("#mainModal").classList.add("player-modal");
- $("#playerClose").onclick=closeModal;
+ if(!playerHistoryOpen){history.pushState({asmPlayer:true,videoId:String(v.id)},"",location.href);playerHistoryOpen=true}
+ $("#playerClose").onclick=()=>closeModal();
  state.recommendationPage=1;renderRecommendations(v.id);
  requestAnimationFrame(()=>window.scrollTo({top:preservedScrollY,left:0,behavior:"instant"}));
  try{
@@ -249,7 +264,11 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
    const availableWidth=Math.max(240,player.clientWidth);
    const maxHeight=Math.max(220,window.innerHeight*.72);
    videoFrame.style.width=Math.min(availableWidth,maxHeight*ratio)+"px";
+   videoFrame.style.maxWidth="100%";
    videoFrame.style.aspectRatio=video.videoWidth+" / "+video.videoHeight;
+   video.style.width="100%";
+   video.style.height="100%";
+   video.style.objectFit="contain";
    videoFrame.dataset.ratio=String(ratio);
   };
   video.addEventListener("loadedmetadata",fitVideoFrame);

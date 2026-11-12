@@ -326,3 +326,23 @@
 
 /* Keep the mobile menu control above the slide overlay so it can always be opened or closed. */
 @media(max-width:800px){.mobile-menu{position:relative;z-index:22;pointer-events:auto;touch-action:manipulation;min-width:42px;min-height:42px}}
+
+/* Responsive player: preserve source aspect ratio and keep controls reachable on mobile. */
+.player-modal{width:min(1100px,96vw);max-width:96vw}
+.player-page{width:100%;min-width:0}
+.video-player{width:100%;min-width:0;overflow:hidden}
+.video-frame{margin-inline:auto;max-width:100%;max-height:72vh;overflow:hidden;background:#000}
+.video-frame video{display:block;width:100%;height:100%;max-width:100%;max-height:72vh;object-fit:contain;background:#000}
+.video-frame video.video-zoomed{object-fit:cover;transform:scale(1.12);transform-origin:center}
+@media(max-width:600px){.player-modal{width:100vw;max-width:100vw;margin:0;border-radius:0}.video-frame{max-height:68vh}.video-frame video{max-height:68vh}.player-toolbar{gap:8px}.player-actions{flex-wrap:wrap;justify-content:flex-end}}
+
+
+/* Responsive player sizing and predictable controls */
+.player-modal .player-page{width:100%;max-width:1440px;margin-inline:auto}
+.player-modal .video-player{width:100%;max-width:100%;margin-inline:auto}
+.player-modal .video-frame{width:100%!important;max-width:100%!important;margin-inline:auto;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;border-radius:14px}
+.player-modal .video-frame video{display:block;width:100%;height:100%;max-width:100%;max-height:78vh;object-fit:contain;background:#000}
+.player-modal .video-player.video-zoom-active .video-frame video{max-height:calc(100vh - 150px)}
+.player-modal .video-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.player-modal .video-play-button{cursor:pointer;touch-action:manipulation}
+@media(max-width:700px){.player-modal .player-page{padding:12px}.player-modal .video-frame{border-radius:9px}.player-modal .video-frame video{max-height:65vh}.player-modal .player-toolbar{gap:8px;flex-wrap:wrap}.player-modal .player-actions{display:flex;gap:6px;flex-wrap:wrap}}
