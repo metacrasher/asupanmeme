@@ -15,7 +15,12 @@ with check (
   and storage_path like 'public/%'
 );
 
--- Anonymous thumbnails are isolated under the public/ folder.
+-- Ensure the thumbnail bucket exists and serves approved public thumbnails.
+insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
+values ('video-thumbnails', 'video-thumbnails', true, 5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg','image/png','image/webp'];
+
+-- Community thumbnails are isolated under the public/ folder.
 drop policy if exists "Public can upload review thumbnails" on storage.objects;
 create policy "Public can upload review thumbnails" on storage.objects
 for insert to anon, authenticated
