@@ -367,3 +367,20 @@ html,body{max-width:100%;overflow-x:hidden}
 .recommendation-copy small{color:#9994a1;font-size:10px}
 @media(max-width:760px){.recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
 @media(max-width:420px){.recommendation-grid{grid-template-columns:minmax(0,1fr);gap:9px}.recommendation-card{display:grid;grid-template-columns:116px minmax(0,1fr);align-items:center;gap:0}.recommendation-thumb{height:76px;aspect-ratio:auto}.recommendation-copy{padding:8px 10px}}
+
+
+/* Player sizing v3: centered, restrained video and compact recommendations. */
+.modal.player-modal .player-page{width:100%;max-width:980px;min-width:0;margin-inline:auto;box-sizing:border-box}
+.modal.player-modal .video-player{width:100%;max-width:100%;min-width:0;align-items:center;overflow:visible}
+.modal.player-modal .video-frame{width:min(100%,900px);max-width:900px;max-height:56dvh;margin-inline:auto;box-sizing:border-box}
+.modal.player-modal .video-frame video{width:100%;height:100%;max-width:100%;max-height:56dvh;object-fit:contain}
+.modal.player-modal .video-controls{width:min(100%,900px);max-width:900px;box-sizing:border-box}
+.modal.player-modal .player-recommendations{width:100%;max-width:900px;margin:24px auto 0;box-sizing:border-box}
+.modal.player-modal .recommendation-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:700px){
+ .modal.player-modal .player-page{max-width:100%;padding-inline:14px}
+ .modal.player-modal .video-frame{max-height:48dvh}
+ .modal.player-modal .video-frame video{max-height:48dvh}
+ .modal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+}
+@media(max-width:420px){.modal.player-modal .recommendation-grid{grid-template-columns:minmax(0,1fr)}}
