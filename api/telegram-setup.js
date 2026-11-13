@@ -1,6 +1,5 @@
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
-const SETUP_KEY = process.env.TELEGRAM_WEBHOOK_SETUP_KEY;
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -8,13 +7,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, message: "Method not allowed" });
   }
 
-  // Separate one-time setup key prevents exposing the webhook secret as an admin credential.
-  if (!SETUP_KEY || req.headers.authorization !== `Bearer ${SETUP_KEY}`) {
+  if (!WEBHOOK_SECRET || req.headers.authorization !== `Bearer ${WEBHOOK_SECRET}`) {
     return res.status(401).json({ ok: false, message: "Unauthorized" });
   }
 
-  if (!BOT_TOKEN || !WEBHOOK_SECRET) {
-    return res.status(500).json({ ok: false, message: "Telegram environment is incomplete" });
+  if (!BOT_TOKEN) {
+    return res.status(500).json({ ok: false, message: "Telegram bot token is missing" });
   }
 
   try {
