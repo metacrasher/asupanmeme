@@ -121,7 +121,20 @@ function paymentStatusMarkup(row){
  const note=row.admin_note?`<small>Catatan admin: ${esc(row.admin_note)}</small>`:"";
  return `<article class="payment-status-row"><div><strong>${esc(row.plan_name)} · ${money(row.amount)}</strong><span class="status-pill ${cls}">${labels[row.status]||"Status tidak diketahui"}</span><small>Waktu pengajuan: ${new Date(row.created_at).toLocaleString("id-ID")}</small>${row.payment_method?`<small>Metode: ${esc(row.payment_method)}</small>`:""}${reviewed}${note}</div></article>`;
 }
-function refreshAuth(){$("#accountButton").textContent=state.user?(state.profile?.username||state.profile?.display_name||state.user.email||"U").slice(0,1).toUpperCase():"?";renderVideos()}
+function refreshAuth(){
+ $("#accountButton").textContent=state.user?(state.profile?.username||state.profile?.display_name||state.user.email||"U").slice(0,1).toUpperCase():"?";
+ renderVideos();renderMembershipHero();
+}
+async function renderMembershipHero(){
+ const priceNode=$("#heroPlanPrice"),loginLink=$("#heroLoginLink"),accountStatus=$("#heroAccountStatus");
+ if(loginLink)loginLink.classList.toggle("hidden",Boolean(state.user));
+ if(accountStatus){accountStatus.classList.toggle("hidden",!state.user);accountStatus.textContent=state.user?(hasPremium()?"✓ Membership aktif — selamat menonton":"Akun masuk · periksa akses pada video eksklusif"):""}
+ if(!priceNode)return;
+ let plans=[{name:"1 Bulan",price:35000,duration_days:30},{name:"3 Bulan",price:90000,duration_days:90}];
+ if(db){try{const {data,error}=await db.from("subscription_plans").select("name,price,duration_days").eq("active",true).order("price");if(!error&&data?.length)plans=data}catch(error){console.warn("ASUPANMEME hero plans:",error)}}
+ const lowest=plans.reduce((a,b)=>Number(a.price)<Number(b.price)?a:b);
+ priceNode.textContent="Mulai "+money(lowest.price)+" · "+plans.map(p=>esc(p.name)+" "+money(p.price)).join(" / ");
+}
 async function loadVideos(){
  if(!db){state.videos=demoVideos;renderVideos();return}
  try{
@@ -148,7 +161,9 @@ async function loadVideos(){
 function hasPremium(){if(state.profile?.role==="admin")return true;return state.profile?.subscription_status==="active" && (!state.profile?.subscription_expires_at || new Date(state.profile.subscription_expires_at)>new Date())}
 function card(v){
  const locked=v.is_exclusive&&!hasPremium();
- return `<article class="video-card" data-video="${esc(v.id)}" tabindex="0" role="button" aria-label="Buka video ${esc(v.title)}"><div class="thumb">${v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'<div class="thumb-placeholder">A.</div>'}${v.is_exclusive?'<span class="exclusive-tag">✦ EKSKLUSIF</span>':""}<span class="duration">${esc(v.duration||"VIDEO")}</span><button type="button" class="save-btn" data-save="${esc(v.id)}" aria-label="Simpan video">${state.saved.has(v.id)?"♥":"♡"}</button>${locked?'<span class="exclusive-tag" style="top:auto;bottom:9px">🔒 MEMBER</span>':""}</div><div class="video-info"><h3>${esc(v.title)}</h3><p>${Number(v.views||0).toLocaleString("id-ID")} views · ${new Date(v.created_at).toLocaleDateString("id-ID")}</p></div></article>`;
+ const accessButton=v.is_exclusive?`<button type="button" class="card-access-button ${locked?"is-locked":"is-unlocked"}" data-access-check="${esc(v.id)}">${locked?"🔒 Periksa Akses":"▶ Tonton Video"}</button>`:"";
+ const caption=String(v.description||"").trim();
+ return `<article class="video-card" data-video="${esc(v.id)}" tabindex="0" role="button" aria-label="Buka video ${esc(v.title)}"><div class="thumb">${v.thumbnail_url?'<img loading="lazy" src="'+esc(v.thumbnail_url)+'" alt="">':'<div class="thumb-placeholder">A.</div>'}${v.is_exclusive?'<span class="exclusive-tag">✦ EKSKLUSIF</span>':""}<span class="duration">${esc(v.duration||"VIDEO")}</span><button type="button" class="save-btn" data-save="${esc(v.id)}" aria-label="Simpan video">${state.saved.has(v.id)?"♥":"♡"}</button>${locked?'<span class="member-lock-label">🔒 MEMBER</span>':""}${accessButton}</div><div class="video-info"><h3>${esc(v.title)}</h3><p class="video-meta">${Number(v.views||0).toLocaleString("id-ID")} views · ${new Date(v.created_at).toLocaleDateString("id-ID")}</p>${caption?`<p class="video-caption">${esc(caption)}</p>`:""}</div></article>`;
 }
 
 function paginationMarkup(total,page,size,attr){
@@ -176,9 +191,9 @@ function renderVideos(){
  if(state.filter==="free")list=list.filter(v=>!v.is_exclusive);
  if(state.filter==="exclusive")list=list.filter(v=>v.is_exclusive);
  if(state.search)list=list.filter(v=>(v.title+" "+(v.description||"")).toLowerCase().includes(state.search));
- const popular=[...state.videos].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,4);
+ const popular=[...state.videos].sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,6);
  $("#popularGrid").innerHTML=popular.map(card).join("")||'<div class="loading-card">Belum ada video.</div>';
- const pageSize=12,pageCount=Math.max(1,Math.ceil(list.length/pageSize));
+ const pageSize=6,pageCount=Math.max(1,Math.ceil(list.length/pageSize));
  state.page=Math.min(Math.max(1,state.page),pageCount);
  const start=(state.page-1)*pageSize;
  $("#videoGrid").innerHTML=list.slice(start,start+pageSize).map(card).join("");
@@ -515,7 +530,9 @@ function toggleSidebar(){
 
 document.addEventListener("click",event=>{
  const target=event.target;if(!(target instanceof Element))return;
- const saveButton=target.closest("[data-save]");
+ const accessButton=target.closest("[data-access-check]");
+  if(accessButton){event.preventDefault();event.stopPropagation();openVideo(accessButton.dataset.accessCheck);return}
+  const saveButton=target.closest("[data-save]");
  if(saveButton){event.preventDefault();event.stopPropagation();const id=saveButton.dataset.save;state.saved.has(id)?state.saved.delete(id):state.saved.add(id);try{localStorage.setItem("asm_saved",JSON.stringify([...state.saved]))}catch(_){}renderVideos();return}
  const videoCard=target.closest(".video-card[data-video]");
  if(videoCard&&!target.closest("button,a,input,select,textarea"))openVideo(videoCard.dataset.video);
