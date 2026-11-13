@@ -441,3 +441,38 @@ html,body{max-width:100%;overflow-x:hidden}
 @media(max-width:420px){
   #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:minmax(0,1fr)!important}
 }
+
+/* Player refresh: access banner, six recommendations, channel CTA and reliable scrolling */
+#modalBackdrop.player-mode{height:100dvh;max-height:100dvh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;touch-action:pan-y}
+#modalBackdrop.player-mode #mainModal.player-modal{min-height:100%;height:auto;overflow:visible}
+#modalBackdrop.player-mode #mainModal.player-modal .player-page{min-height:100dvh;padding-bottom:42px}
+.player-membership-banner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;margin:26px auto 34px;padding:28px 22px;max-width:760px;min-height:260px;text-align:center;border:1px solid #292933;border-radius:18px;background:radial-gradient(ellipse at 50% 0%,#351321 0,transparent 68%),#0d0d12}
+.player-membership-banner .eyebrow{margin:0;color:#ff7398}
+.player-membership-banner h2{margin:0;font:700 clamp(23px,4vw,34px) "Space Grotesk";line-height:1.2}
+.player-membership-banner .btn{width:min(100%,560px);min-height:58px;font-size:clamp(15px,2.4vw,20px)}
+.player-login-link{border:0;background:transparent;color:#e4e1e8;font-weight:800;font-size:clamp(14px,2vw,18px);padding:8px 12px}
+.player-meta{margin:0 0 14px;color:#92929f;font-weight:700}
+.exclusive-player-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:230px;width:100%;padding:25px;text-align:center}
+.exclusive-player-gate .gate-lock{display:grid;place-items:center;width:54px;height:54px;border:1px solid #71324a;border-radius:16px;background:#29131e;color:#ff83a5;font-size:27px}
+.exclusive-player-gate h3{margin:0;color:#fff;font:700 21px "Space Grotesk"}
+.exclusive-player-gate p{max-width:420px;margin:0;color:#aaa5b1;font-size:13px;line-height:1.6}
+.exclusive-player-gate .btn{min-width:min(100%,300px);min-height:48px}
+.player-channel{display:flex;justify-content:center;align-items:center;width:100%;margin:26px auto 10px}
+.player-channel a{display:inline-flex;align-items:center;justify-content:center;min-height:58px;width:min(100%,560px);padding:12px 20px;border:1px solid #23764b;border-radius:13px;background:#103326;color:#e4fff0;text-decoration:none;text-align:center;font-weight:800;font-size:clamp(14px,2vw,18px)}
+#modalBackdrop.player-mode .recommendation-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+#modalBackdrop.player-mode .recommendation-grid .video-card{min-width:0}
+#modalBackdrop.player-mode .recommendation-grid .video-info h3{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.4}
+#modalBackdrop.player-mode .recommendation-pagination{display:none!important}
+@media(max-width:700px){
+ #modalBackdrop.player-mode .player-membership-banner{margin:18px auto 25px;padding:24px 16px;min-height:230px}
+ #modalBackdrop.player-mode .recommendation-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}
+ #modalBackdrop.player-mode .recommendation-grid .video-info{padding:8px 1px 0}
+ #modalBackdrop.player-mode .recommendation-grid .video-info h3{font-size:10px}
+ #modalBackdrop.player-mode .recommendation-grid .video-info p{font-size:9px}
+ #modalBackdrop.player-mode .recommendation-grid .thumb{border-radius:8px}
+ #modalBackdrop.player-mode .player-channel a{min-height:52px}
+}
+@media(max-width:360px){
+ #modalBackdrop.player-mode .recommendation-grid{gap:6px!important}
+ #modalBackdrop.player-mode .recommendation-grid .video-info h3{font-size:9px}
+}
