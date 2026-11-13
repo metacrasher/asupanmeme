@@ -61,9 +61,6 @@
 
       <section class="content">
 
-        <section class="contributor-notice" aria-label="Program apresiasi kontributor"><div class="contributor-icon">✦</div><div class="contributor-copy"><span class="eyebrow">PROGRAM KONTRIBUTOR</span><h3>Bagikan video, raih apresiasi dari admin.</h3><p>Kontributor yang aktif dan rutin mengirimkan konten berkualitas berkesempatan mendapatkan akses eksklusif atau benefit khusus dari admin setelah melalui evaluasi.</p></div><button class="btn btn-primary btn-small" data-action="upload">Upload +</button></section>
-
-
         <section class="membership-hero" aria-labelledby="membershipHeroTitle">
           <p class="eyebrow"><span class="live-dot"></span> ASUPANMEME PREMIUM</p>
           <h1 id="membershipHeroTitle">Video Eksklusif</h1>
@@ -73,8 +70,13 @@
           <p class="membership-account-status hidden" id="heroAccountStatus"></p>
         </section>
 
-        <div class="section-heading"><div><p class="eyebrow">HANDPICKED FOR YOU</p><h2>Video populer</h2></div><button class="text-link" data-view="popular">Lihat semua <span>→</span></button></div>
-        <div class="video-grid" id="popularGrid"><div class="loading-card">Memuat video...</div></div>
+        <section class="contributor-notice" aria-label="Program apresiasi kontributor"><div class="contributor-icon">✦</div><div class="contributor-copy"><span class="eyebrow">PROGRAM KONTRIBUTOR</span><h3>Bagikan video, raih apresiasi dari admin.</h3><p>Kontributor yang aktif dan rutin mengirimkan konten berkualitas berkesempatan mendapatkan akses eksklusif atau benefit khusus dari admin setelah melalui evaluasi.</p></div><button class="btn btn-primary btn-small" data-action="upload">Upload +</button></section>
+
+
+
+
+        <div class="section-heading hidden"><div><p class="eyebrow">HANDPICKED FOR YOU</p><h2>Video populer</h2></div><button class="text-link" data-view="popular">Lihat semua <span>→</span></button></div>
+        <div class="video-grid hidden" id="popularGrid"><div class="loading-card">Memuat video...</div></div>
 
         <div class="section-heading section-spaced"><div><p class="eyebrow">FRESH FROM THE LIBRARY</p><h2>Semua video</h2><p class="muted section-subtitle" id="videoCount">Temukan koleksi terbaru kami.</p></div></div>
         <div class="filter-row"><div class="filter-tabs"><button class="filter-tab active" data-filter="all">Semua</button><button class="filter-tab" data-filter="free">Gratis</button><button class="filter-tab" data-filter="exclusive">Eksklusif <span>✦</span></button></div><select id="sortSelect" class="sort-select" aria-label="Urutkan video"><option value="newest">Terbaru</option><option value="popular">Paling populer</option><option value="az">Nama A–Z</option></select></div>
