@@ -10,8 +10,7 @@ document.addEventListener("click", event => {
  if(target.closest("#modalClose,.modal-close,[data-close-modal]")){
   event.preventDefault();
   event.stopImmediatePropagation();
-  const backdrop=document.getElementById("modalBackdrop");
-  if(backdrop){backdrop.classList.add("hidden");backdrop.setAttribute("aria-hidden","true")}
+  if(typeof closeModal==="function")closeModal();
   return;
  }
  if(target.closest("#menuToggle,[data-toggle-sidebar]")){
@@ -47,22 +46,33 @@ document.addEventListener("click", (event) => {
 const cfg = window.APP_CONFIG || {};
 const configured = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY) : null;
-// Read the public video catalog through an isolated anonymous client.
-// This prevents a signed-in user's JWT/RLS context from accidentally hiding
-// published catalog rows, while the main client still handles account actions.
-const catalogDb = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{
-  auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
-}) : null;
+// Use an isolated anonymous client for the published catalog so a logged-in
+// member's JWT/RLS context cannot accidentally hide public video rows.
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
 const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 let dashboardBackGuard=false;
+let playerHistoryOpen=false;
 function protectDashboardBack(){dashboardBackGuard=true;history.pushState({asmDashboardGuard:true},"",location.href);}
-window.addEventListener("popstate",()=>{if(dashboardBackGuard&&!$("#modalBackdrop")?.classList.contains("hidden"))history.pushState({asmDashboardGuard:true},"",location.href);});
+window.addEventListener("popstate",()=>{
+ if(playerHistoryOpen){playerHistoryOpen=false;closeModal(true);return}
+ if(dashboardBackGuard&&!$("#modalBackdrop")?.classList.contains("hidden"))history.pushState({asmDashboardGuard:true},"",location.href);
+});
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const toast = msg => {const el=document.createElement("div");el.className="toast";el.textContent=msg;$("#toastRegion").append(el);setTimeout(()=>el.remove(),3200)};
+const toast = msg => {const region=$("#toastRegion");if(!region)return;const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=msg;region.append(el);requestAnimationFrame(()=>el.classList.add("toast-visible"));setTimeout(()=>{el.classList.remove("toast-visible");setTimeout(()=>el.remove(),220)},4200)};
 const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal","auth-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
-const closeModal = () => {dashboardBackGuard=false;const video=$("#videoPlayer video");if(video){video.pause();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal");$("#modalBackdrop").classList.add("hidden");$("#modalBackdrop").setAttribute("aria-hidden","true")};
+const closeModal = (fromHistory=false) => {
+ const wasPlayer=$("#modalBackdrop").classList.contains("player-mode");
+ dashboardBackGuard=false;
+ const video=$("#videoPlayer video");
+ if(video){video.pause();video.removeAttribute("src");video.load()}
+ if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+ $("#modalBackdrop").classList.remove("player-mode");
+ $("#mainModal").classList.remove("player-modal");
+ $("#modalBackdrop").classList.add("hidden");
+ $("#modalBackdrop").setAttribute("aria-hidden","true");
+ if(wasPlayer&&playerHistoryOpen&&!fromHistory){playerHistoryOpen=false;history.back()}
+};
 const demoVideos = [
  {id:"demo1",title:"Contoh video pilihan hari ini",description:"Video demo untuk memperlihatkan tampilan katalog.",thumbnail:"",duration:"08:24",views:12400,created_at:new Date().toISOString(),is_exclusive:false,video_url:""},
  {id:"demo2",title:"Koleksi eksklusif — preview",description:"Preview katalog premium. Tambahkan video milikmu melalui database.",thumbnail:"",duration:"12:10",views:8900,created_at:new Date(Date.now()-86400000).toISOString(),is_exclusive:true,video_url:""},
@@ -72,37 +82,67 @@ const demoVideos = [
 function openAccount(){if(state.user){accountPanel();return}modal(`<p class="eyebrow">WELCOME BACK</p><h2 id="modalTitle">Masuk ke akun</h2><p>Pengguna masuk dengan username. Admin masuk menggunakan email admin. Gunakan password yang sama seperti saat mendaftar.</p><form class="form-stack" id="authForm"><div class="field"><label>Username atau email admin</label><input name="identity" type="text" required autocomplete="username" maxlength="254" placeholder="Masukkan username"></div><div class="field"><label>Password</label><input name="password" type="password" required autocomplete="current-password" placeholder="Masukkan password"></div><button class="btn btn-primary" type="submit">Masuk</button></form><p class="muted">Pastikan username dan password benar. Simpan informasi login kamu agar tidak lupa.</p><p class="form-foot">Belum punya akun? <button class="inline-link" id="showSignup">Daftar sekarang</button></p>`);$("#mainModal").classList.add("auth-modal");$("#authForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),identity=String(f.get("identity")||"").trim().toLowerCase();if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}let loginEmail=identity;if(!identity.includes("@")){if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(identity)){toast("Username harus 3–24 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.");return}loginEmail=identity+"@members.asupanmeme.invalid"}const submit=e.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent="Memeriksa...";const {data,error}=await db.auth.signInWithPassword({email:loginEmail,password:f.get("password")});if(error){submit.disabled=false;submit.textContent="Masuk";toast("Username/email atau password tidak sesuai. Periksa kembali data login kamu.");return}state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Selamat datang kembali di ASUPANMEME.");};$("#showSignup").onclick=signupPanel}
 function signupPanel(){modal(`<p class="eyebrow">JOIN THE COMMUNITY</p><h2 id="modalTitle">Buat akun ASUPANMEME</h2><p>Daftar cukup dengan username dan password. Email tidak diperlukan untuk akun anggota.</p><form class="form-stack" id="signupForm"><div class="field"><label>Username</label><input name="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,23}" autocomplete="username" placeholder="Contoh: namakamu"></div><div class="field"><label>Password</label><input name="password" type="password" minlength="8" required autocomplete="new-password" placeholder="Minimal 8 karakter"></div><div class="field"><label>Ulangi password</label><input name="passwordConfirm" type="password" minlength="8" required autocomplete="new-password" placeholder="Masukkan ulang password"></div><p class="muted">Penting: ingat username dan password ini. Akun anggota tidak menggunakan email untuk pemulihan password, jadi simpan informasi login di tempat yang aman dan jangan bagikan kepada siapa pun.</p><button class="btn btn-primary" type="submit">Buat akun</button></form><p class="form-foot">Sudah punya akun? <button class="inline-link" id="showLogin">Masuk</button></p>`);$("#mainModal").classList.add("auth-modal");$("#signupForm").onsubmit=async e=>{e.preventDefault();const form=e.currentTarget,f=new FormData(form),username=String(f.get("username")||"").trim().toLowerCase(),password=String(f.get("password")||"");if(!db){toast("Layanan akun belum terhubung. Silakan coba lagi nanti.");return}if(!/^[a-z0-9][a-z0-9._-]{2,23}$/.test(username)){toast("Username harus 3–24 karakter dan hanya memakai huruf, angka, titik, _ atau -.");return}if(password!==f.get("passwordConfirm")){toast("Konfirmasi password belum sama.");return}const btn=form.querySelector('button[type="submit"]');btn.disabled=true;btn.textContent="Membuat akun...";const {data,error}=await db.auth.signUp({email:username+"@members.asupanmeme.invalid",password,options:{data:{username,display_name:username}}});if(error){btn.disabled=false;btn.textContent="Buat akun";toast(error.message.toLowerCase().includes("already")?"Username tersebut sudah digunakan. Silakan pilih username lain.":"Pendaftaran gagal: "+error.message);return}if(data.user){if(data.session){state.user=data.user;await loadProfile();closeModal();refreshAuth();toast("Akun berhasil dibuat. Selamat bergabung!");}else{toast("Akun berhasil dibuat. Jika belum bisa masuk, silakan hubungi admin.");closeModal()}}};$("#showLogin").onclick=openAccount}
 async function loadProfile(){if(!db||!state.user)return;const {data}=await db.from("profiles").select("*").eq("id",state.user.id).maybeSingle();state.profile=data||null}
+function membershipState(profile){
+ const status=String(profile?.subscription_status||"free").toLowerCase();
+ const expiry=profile?.subscription_expires_at?new Date(profile.subscription_expires_at):null;
+ if(status==="active"&&!expiry)return {label:"Aktif · Permanen",detail:"Membership tidak memiliki tanggal kedaluwarsa.",kind:"approved"};
+ if(status==="active"&&expiry&&expiry.getTime()>Date.now())return {label:"Aktif",detail:"Berakhir pada "+expiry.toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"}),kind:"approved"};
+ if(status==="active"&&expiry&&expiry.getTime()<=Date.now())return {label:"Kedaluwarsa",detail:"Masa membership telah berakhir pada "+expiry.toLocaleString("id-ID",{dateStyle:"long",timeStyle:"short"}),kind:"rejected"};
+ if(status==="pending")return {label:"Menunggu pembayaran",detail:"Pengajuan sedang menunggu pemeriksaan admin.",kind:"pending"};
+ if(status==="rejected")return {label:"Tidak aktif",detail:"Pengajuan terakhir ditolak. Periksa riwayat transaksi untuk catatan admin.",kind:"rejected"};
+ return {label:"Gratis",detail:"Akun saat ini menggunakan akses gratis.",kind:""};
+}
 async function accountPanel(){
  protectDashboardBack();
- modal(`<p class="eyebrow">MY ACCOUNT</p><h2 id="modalTitle">${esc(state.profile?.display_name||state.user.email)}</h2><p>${esc(state.profile?.role==="admin"?state.user.email:(state.profile?.username||"Akun anggota"))}</p><p>Membership aktif: <span class="status-pill ${state.profile?.subscription_status==="active"?"approved":""}">${esc(state.profile?.subscription_status||"free").toUpperCase()}</span></p><div class="form-stack"><button class="btn btn-primary" id="uploadOpen">Upload video</button><button class="btn btn-ghost" id="myMembership">Kelola membership</button>${state.profile?.role==="admin"?'<button class="btn btn-ghost" id="adminOpen">Dashboard admin</button>':""}<button class="btn btn-ghost" id="logoutBtn">Keluar</button></div><section class="payment-history"><h3>Riwayat Membership</h3><p class="muted">Pantau setiap pengajuan pembelian. Status akan berubah setelah admin menyetujui atau menolak pembayaran.</p><div id="myPaymentHistory"><p class="muted">Memuat riwayat membership...</p></div></section>`);
+ const membership=membershipState(state.profile);
+ modal(`<p class="eyebrow">MY ACCOUNT</p><h2 id="modalTitle">${esc(state.profile?.display_name||state.user.email)}</h2><p>${esc(state.profile?.role==="admin"?state.user.email:(state.profile?.username||"Akun anggota"))}</p>
+ <section class="payment-history" style="margin:18px 0;padding:18px;border:1px solid #37313b;border-radius:14px;background:rgba(255,255,255,.025)">
+  <p class="eyebrow">STATUS AKUN</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Membership</h3><span class="status-pill ${membership.kind}">${esc(membership.label)}</span></div><p class="muted" style="margin:8px 0 0">${esc(membership.detail)}</p>
+ </section>
+ <div class="form-stack"><button class="btn btn-primary" id="uploadOpen">Upload video</button><button class="btn btn-ghost" id="myMembership">Kelola membership</button>${state.profile?.role==="admin"?'<button class="btn btn-ghost" id="adminOpen">Dashboard admin</button>':""}<button class="btn btn-ghost" id="logoutBtn">Keluar</button></div>`);
  $("#uploadOpen").onclick=uploadPanel;$("#myMembership").onclick=membershipPanel;
  if($("#adminOpen"))$("#adminOpen").onclick=adminPanel;
  $("#logoutBtn").onclick=async()=>{await db?.auth.signOut();state.user=null;state.profile=null;closeModal();refreshAuth();toast("Kamu sudah keluar.")};
+}
+async function transactionHistoryPanel(){
+ if(!state.user){openAccount();toast("Silakan masuk untuk melihat riwayat transaksi.");return}
+ protectDashboardBack();
+ modal(`<p class="eyebrow">PAYMENT RECORDS</p><h2 id="modalTitle">Riwayat transaksi</h2><p class="muted">Riwayat pengajuan pembayaran dan hasil pemeriksaan admin.</p><div id="myPaymentHistory"><p class="muted">Memuat riwayat transaksi...</p></div>`);
  const target=$("#myPaymentHistory");
- if(!db){target.innerHTML='<p class="muted">Riwayat membership memerlukan koneksi database.</p>';return}
- const {data,error}=await db.from("payment_submissions").select("id,plan_name,amount,payment_method,status,admin_note,created_at,reviewed_at").eq("user_id",state.user.id).order("created_at",{ascending:false}).limit(20);
- if(error){target.innerHTML='<p class="muted">Riwayat belum dapat dimuat. Coba buka kembali menu akun.</p>';return}
- target.innerHTML=(data||[]).map(paymentStatusMarkup).join("")||'<p class="muted">Belum ada pengajuan membership. Pilih paket untuk mulai berlangganan.</p>';
+ if(!db){target.innerHTML='<p class="muted">Riwayat transaksi memerlukan koneksi database.</p>';return}
+ const {data,error}=await db.from("payment_submissions").select("id,plan_name,amount,payment_method,status,admin_note,created_at,reviewed_at").eq("user_id",state.user.id).order("created_at",{ascending:false}).limit(50);
+ if(error){target.innerHTML='<p class="muted">Riwayat belum dapat dimuat. Coba buka kembali menu ini.</p>';return}
+ target.innerHTML=(data||[]).map(paymentStatusMarkup).join("")||'<p class="muted">Belum ada transaksi.</p>';
 }
 function paymentStatusMarkup(row){
- const labels={pending:"Menunggu Persetujuan Admin",approved:"Disetujui Admin",rejected:"Ditolak Admin"};
+ const labels={pending:"Menunggu verifikasi",approved:"Diterima admin",rejected:"Ditolak admin"};
  const cls=row.status==="approved"?"approved":row.status==="rejected"?"rejected":"pending";
- const reviewed=row.reviewed_at?`<small>Diperiksa: ${new Date(row.reviewed_at).toLocaleString("id-ID")}</small>`:"";
+ const reviewed=row.reviewed_at?`<small>Diperiksa admin: ${new Date(row.reviewed_at).toLocaleString("id-ID")}</small>`:"";
  const note=row.admin_note?`<small>Catatan admin: ${esc(row.admin_note)}</small>`:"";
- return `<article class="payment-status-row"><div><strong>${esc(row.plan_name)} · ${money(row.amount)}</strong><span class="status-pill ${cls}">${labels[row.status]||"Status tidak diketahui"}</span><small>Diajukan: ${new Date(row.created_at).toLocaleString("id-ID")}</small>${row.payment_method?`<small>Metode: ${esc(row.payment_method)}</small>`:""}${reviewed}${note}</div></article>`;
+ return `<article class="payment-status-row"><div><strong>${esc(row.plan_name)} · ${money(row.amount)}</strong><span class="status-pill ${cls}">${labels[row.status]||"Status tidak diketahui"}</span><small>Waktu pengajuan: ${new Date(row.created_at).toLocaleString("id-ID")}</small>${row.payment_method?`<small>Metode: ${esc(row.payment_method)}</small>`:""}${reviewed}${note}</div></article>`;
 }
 function refreshAuth(){$("#accountButton").textContent=state.user?(state.profile?.username||state.profile?.display_name||state.user.email||"U").slice(0,1).toUpperCase():"?";renderVideos()}
 async function loadVideos(){
- if(!catalogDb){state.videos=demoVideos;renderVideos();return}
+ if(!db){state.videos=demoVideos;renderVideos();return}
  try{
-  let result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
-  if(result.error?.code==="42703")result=await catalogDb.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
-  if(result.error)throw result.error;
-  state.videos=result.data||[];
+  // Use the active session: anon visitors see public videos, while signed-in
+  // members/admins are evaluated by the matching Supabase RLS policies.
+  const runQuery=async()=>{
+   let result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
+   if(result.error?.code==="42703")result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
+   if(result.error)throw result.error;
+   return result.data||[];
+  };
+  let timeoutId;
+  const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Waktu tunggu katalog habis. Periksa koneksi Supabase dan kebijakan RLS.")),15000)});
+  try{state.videos=await Promise.race([runQuery(),timeout]);}
+  finally{clearTimeout(timeoutId)}
+  state.catalogError=null;
  }catch(error){
   console.error("ASUPANMEME loadVideos:",error);
-  state.videos=[];
-  toast("Katalog gagal dimuat: "+(error?.message||"Periksa koneksi dan kebijakan database."));
+  state.catalogError=error?.message||"Periksa koneksi dan kebijakan database.";
+  // Keep any previously loaded catalog instead of making existing videos vanish.
+  toast("Katalog gagal dimuat: "+state.catalogError);
  }finally{renderVideos()}
 }
 function hasPremium(){if(state.profile?.role==="admin")return true;return state.profile?.subscription_status==="active" && (!state.profile?.subscription_expires_at || new Date(state.profile.subscription_expires_at)>new Date())}
@@ -146,9 +186,9 @@ function renderVideos(){
  $("#emptyState").classList.toggle("hidden",list.length>0);
  $("#pagination").innerHTML=paginationMarkup(list.length,state.page,pageSize,"page");
 }
-async function openVideo(id){
+async function openVideo(id, previewVideo=null, adminPreview=false){
  const preservedScrollY=window.scrollY;
- const v=state.videos.find(x=>String(x.id)===String(id));if(!v)return;
+ const v=previewVideo||state.videos.find(x=>String(x.id)===String(id));if(!v)return;
  if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Konten eksklusif</h2><p>Video ini hanya tersedia untuk anggota dengan membership aktif. Pilih paket untuk mengajukan langganan.</p><button class="btn btn-primary" id="unlockNow">Lihat paket membership</button>`);$("#unlockNow").onclick=membershipPanel;return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
  modal(`<div class="player-page">
@@ -174,7 +214,8 @@ async function openVideo(id){
  </div>`);
  $("#modalBackdrop").classList.add("player-mode");
  $("#mainModal").classList.add("player-modal");
- $("#playerClose").onclick=closeModal;
+ if(!playerHistoryOpen){history.pushState({asmPlayer:true,videoId:String(v.id)},"",location.href);playerHistoryOpen=true}
+ $("#playerClose").onclick=()=>closeModal();
  state.recommendationPage=1;renderRecommendations(v.id);
  requestAnimationFrame(()=>window.scrollTo({top:preservedScrollY,left:0,behavior:"instant"}));
  try{
@@ -182,7 +223,7 @@ async function openVideo(id){
   if(v.storage_path){
    if(!db)throw new Error("Koneksi database tidak tersedia.");
    const {data:{session}}=await db.auth.getSession();
-   const response=await fetch("/api/playback",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({video_id:v.id})});
+   const response=await fetch("/api/playback",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({video_id:v.id,admin_preview:adminPreview})});
    const result=await response.json();if(!response.ok)throw new Error(result.error||"Tidak dapat memutar video.");playbackUrl=result.url;
   }
   const player=$("#videoPlayer");
@@ -223,7 +264,11 @@ async function openVideo(id){
    const availableWidth=Math.max(240,player.clientWidth);
    const maxHeight=Math.max(220,window.innerHeight*.72);
    videoFrame.style.width=Math.min(availableWidth,maxHeight*ratio)+"px";
+   videoFrame.style.maxWidth="100%";
    videoFrame.style.aspectRatio=video.videoWidth+" / "+video.videoHeight;
+   video.style.width="100%";
+   video.style.height="100%";
+   video.style.objectFit="contain";
    videoFrame.dataset.ratio=String(ratio);
   };
   video.addEventListener("loadedmetadata",fitVideoFrame);
@@ -287,7 +332,7 @@ async function membershipPanel(){
  }
  modal(`<p class="eyebrow">ASUPANMEME MEMBERSHIP</p><h2 id="modalTitle">Pilih akses premium</h2><p>Nikmati video eksklusif setelah pembayaran diverifikasi admin. Premium 7 hari berakhir otomatis setelah masa aktif habis; paket permanen tidak kedaluwarsa.</p><div class="payment-notice" role="note"><div class="payment-notice-heading"><span class="payment-notice-icon" aria-hidden="true">!</span><strong>Perhatian — Ketentuan Pembayaran</strong></div><p>Pilih paket dan bayarkan nominal yang tepat sesuai harga yang tertera. Admin akan mencocokkan paket pilihan dengan jumlah pembayaran pada bukti transfer. Jika nominal atau paket tidak sesuai—misalnya memilih paket Rp5.000 tetapi membayar Rp20.000 untuk paket permanen—pengajuan dapat ditolak. Pembayaran yang tidak sesuai atau pengajuan yang ditolak tidak dapat dikembalikan (non-refundable). Periksa kembali paket dan nominal sebelum melakukan pembayaran.</p></div><div class="plans">${plans.map(p=>'<div class="plan '+(p.id==="quarterly"?"featured":"")+'"><h3>'+esc(p.name)+'</h3><strong>'+money(p.price)+'</strong><p>'+(Number(p.duration_days)===0?"Akses permanen tanpa kedaluwarsa":'Akses selama '+(p.duration_days||7)+' hari')+'</p><button class="btn btn-primary" data-plan="'+esc(p.id)+'">Pilih paket</button></div>').join("")}</div><section class="qris-payment"><h3>Pembayaran QRIS</h3><p>Scan QRIS melalui aplikasi mobile banking atau e-wallet. Pastikan nominal sesuai paket yang dipilih.</p>${payment.qris_image_url?'<img id="qrisImage" src="'+esc(payment.qris_image_url)+'" alt="QRIS pembayaran ASUPANMEME" loading="lazy">':'<div class="qris-missing">QRIS belum diunggah oleh admin. Silakan hubungi admin sebelum melakukan pembayaran.</div>'}<small>Pastikan nama merchant dan nominal sesuai sebelum menyelesaikan pembayaran.</small></section><div class="field"><label>Instruksi pembayaran dari admin</label><textarea readonly rows="3">${esc(payment.payment_instructions||"Admin belum mengatur instruksi pembayaran. Silakan hubungi admin situs.")}${payment.payment_account?"\n"+payment.payment_account:""}</textarea></div><p class="muted">Setelah transfer, pilih paket lalu unggah bukti pembayaran. Status akan tampil di akun sampai admin memverifikasi.</p>`);
  if($("#qrisImage"))$("#qrisImage").addEventListener("error",()=>{$("#qrisImage").outerHTML='<div class="qris-missing">Gambar QRIS tidak dapat dimuat. Hubungi admin untuk mendapatkan QRIS terbaru.</div>'});
- $("[data-plan]").forEach(b=>b.onclick=()=>{if(!state.user){openAccount();toast("Login atau daftar terlebih dahulu untuk melanjutkan pembelian membership.");return}paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan))});
+ $$("[data-plan]").forEach(b=>b.onclick=()=>{if(!state.user){openAccount();toast("Login atau daftar terlebih dahulu untuk melanjutkan pembelian membership.");return}paymentPanel(plans.find(p=>String(p.id)===b.dataset.plan))});
 }
 function paymentPanel(plan){
  if(!plan)return;
@@ -313,13 +358,12 @@ function paymentPanel(plan){
  };
 }
 async function uploadPanel(){
- if(!state.user){openAccount();toast("Login terlebih dahulu.");return}
  const isAdmin=state.profile?.role==="admin";
- modal(`<div class="upload-dialog"><div class="upload-dialog-heading"><span class="upload-kicker">ASUPANMEME CREATOR STUDIO</span><h2 id="modalTitle">Upload video</h2><p>${isAdmin?"Terbitkan konten baru dan atur akses penayangannya.":"Bagikan video pilihanmu kepada komunitas ASUPANMEME."}</p></div><div class="upload-promo"><div class="upload-promo-mark">✦</div><div><strong>Bagikan konten berkualitas</strong><p>Unggah video gratis untuk komunitas. Kontributor yang aktif dan rutin berbagi berkesempatan mendapatkan penawaran akses eksklusif dari admin.</p><small>Video akan ditayangkan setelah proses upload berhasil.</small></div></div><form class="form-stack upload-form" id="videoUploadForm"><div class="upload-section-label">INFORMASI VIDEO</div><div class="field"><label>Judul video</label><input name="title" required maxlength="120" placeholder="Judul video"></div><div class="field"><label>Deskripsi <span class="field-optional">OPSIONAL</span></label><textarea name="description" rows="3" maxlength="1000" placeholder="Deskripsi video (opsional)"></textarea></div><div class="field"><label>File video <span>MP4, WEBM, MOV · MAKS. 500 MB</span></label><input name="video" type="file" accept="video/mp4,video/webm,video/quicktime" required></div><div class="field"><label>Thumbnail <span class="field-optional">OPSIONAL · JPG/PNG/WEBP · MAKS. 5 MB</span></label><input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"></div>${isAdmin?'<div class="field"><label>Akses video</label><select name="access"><option value="free">Gratis</option><option value="exclusive">Eksklusif</option></select></div>':'<div class="field"><label>Akses video</label><input value="Gratis (wajib)" disabled></div>'}<button class="btn btn-primary upload-submit" type="submit"><span>Upload video</span><span aria-hidden="true">↗</span></button></form></div>`);
+ modal(`<div class="upload-dialog"><div class="upload-dialog-heading"><span class="upload-kicker">ASUPANMEME CREATOR STUDIO</span><h2 id="modalTitle">Upload video</h2><p>${isAdmin?"Terbitkan konten baru dan atur akses penayangannya.":"Kirim video untuk ditinjau admin sebelum ditayangkan."}</p></div><div class="upload-promo"><div class="upload-promo-mark">✦</div><div><strong>Bagikan konten berkualitas</strong><p>Unggah video gratis untuk komunitas. Kontributor yang aktif dan rutin berbagi berkesempatan mendapatkan penawaran akses eksklusif dari admin.</p><small>${isAdmin?"Video admin dapat langsung ditayangkan.":"Video akan diperiksa admin terlebih dahulu sebelum muncul di katalog."}</small></div></div><form class="form-stack upload-form" id="videoUploadForm"><div class="upload-section-label">INFORMASI VIDEO</div><div class="field"><label>Judul video</label><input name="title" required maxlength="120" placeholder="Judul video"></div><div class="field"><label>Deskripsi <span class="field-optional">OPSIONAL</span></label><textarea name="description" rows="3" maxlength="1000" placeholder="Deskripsi video (opsional)"></textarea></div><div class="field"><label>File video <span>MP4, WEBM, MOV · MAKS. 500 MB</span></label><input name="video" type="file" accept="video/mp4,video/webm,video/quicktime" required></div><div class="field"><label>Thumbnail <span class="field-optional">OPSIONAL · JPG/PNG/WEBP · MAKS. 5 MB</span></label><input name="thumbnail" type="file" accept="image/jpeg,image/png,image/webp"></div>${isAdmin?'<div class="field"><label>Akses video</label><select name="access"><option value="free">Gratis</option><option value="exclusive">Eksklusif</option></select></div>':'<div class="field"><label>Akses video</label><input value="Gratis (wajib)" disabled></div>'}<button class="btn btn-primary upload-submit" type="submit"><span>Upload video</span><span aria-hidden="true">↗</span></button></form></div>`);
  $("#videoUploadForm").onsubmit=async e=>{
   e.preventDefault();
   const form=e.currentTarget,f=new FormData(form),video=f.get("video"),thumb=f.get("thumbnail");
-  if(!db||!state.user){toast("Silakan login ulang.");return}
+  if(!db){toast("Layanan upload belum terhubung.");return}
   const allowedTypes=["video/mp4","video/webm","video/quicktime"];
   if(!video||!allowedTypes.includes(video.type)||video.size>500*1024*1024){toast("Pilih video MP4, WEBM, atau MOV maksimal 500 MB.");return}
   if(thumb?.size>5*1024*1024){toast("Thumbnail maksimal 5 MB.");return}
@@ -330,35 +374,51 @@ async function uploadPanel(){
   let multipartCompleted=false;
   let thumbnailPath=null;
   let uploadToken=null;
+  let uploadOwner=state.user?.id||("public");
   const multipartRequest=async(payload)=>{
-   const response=await fetch("/api/r2-multipart",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify(payload)});
+   const headers={"content-type":"application/json",...(uploadToken?{Authorization:"Bearer "+uploadToken}:{})};
+   const response=await fetch("/api/r2-multipart",{method:"POST",headers,body:JSON.stringify(payload)});
    const result=await response.json().catch(()=>({error:"Respons server tidak valid."}));
    if(!response.ok)throw new Error(result.error||"Permintaan multipart upload gagal (HTTP "+response.status+").");
    return result;
   };
   try{
    const sessionResult=await db.auth.getSession();
-   uploadToken=sessionResult.data?.session?.access_token;
-   if(!uploadToken)throw new Error("Sesi login berakhir. Silakan login kembali.");
+   const sessionToken=sessionResult.data?.session?.access_token||null;
+   const admin=state.profile?.role==="admin";
+   // Community submissions always use the public/ review namespace, even when signed in.
+   uploadToken=admin?sessionToken:null;
    const created=await multipartRequest({action:"create",filename:video.name,content_type:video.type,size:video.size});
    r2Key=created.key;
    multipartUploadId=created.uploadId;
    const partSize=10*1024*1024;
    const completedParts=[];
-   for(let index=0;index<created.parts.length;index++){
-    const part=created.parts[index];
-    const from=index*partSize;
-    const chunk=video.slice(from,Math.min(from+partSize,video.size));
-    btn.textContent="Mengunggah bagian "+(index+1)+"/"+created.parts.length+"...";
-    const partResponse=await fetch(part.url,{method:"PUT",body:chunk});
-    if(!partResponse.ok){
-     const detail=await partResponse.text().catch(()=>"");
-     throw new Error("Bagian "+(index+1)+" gagal diunggah (HTTP "+partResponse.status+"). "+detail.slice(0,220));
+   // Upload up to three R2 parts concurrently to reduce total waiting time
+   // while keeping memory/network usage bounded on mobile devices.
+   let completedCount=0;
+   const partResults=new Array(created.parts.length);
+   let nextPartIndex=0;
+   const uploadWorker=async()=>{
+    while(true){
+     const index=nextPartIndex++;
+     if(index>=created.parts.length)return;
+     const part=created.parts[index];
+     const from=index*partSize;
+     const chunk=video.slice(from,Math.min(from+partSize,video.size));
+     const partResponse=await fetch(part.url,{method:"PUT",body:chunk});
+     if(!partResponse.ok){
+      const detail=await partResponse.text().catch(()=>"");
+      throw new Error("Bagian "+(index+1)+" gagal diunggah (HTTP "+partResponse.status+"). "+detail.slice(0,220));
+     }
+     const etag=partResponse.headers.get("ETag");
+     if(!etag)throw new Error("Dahono tidak mengirim header ETag untuk bagian "+(index+1)+". Bucket perlu mengizinkan expose header ETag pada CORS.");
+     partResults[index]={PartNumber:part.partNumber,ETag:etag};
+     completedCount++;
+     btn.textContent="Mengunggah video "+Math.round(completedCount/created.parts.length*100)+"% ("+completedCount+"/"+created.parts.length+")";
     }
-    const etag=partResponse.headers.get("ETag");
-    if(!etag)throw new Error("Dahono tidak mengirim header ETag untuk bagian "+(index+1)+". Bucket perlu mengizinkan expose header ETag pada CORS.");
-    completedParts.push({PartNumber:part.partNumber,ETag:etag});
-   }
+   };
+   await Promise.all(Array.from({length:Math.min(3,created.parts.length)},()=>uploadWorker()));
+   completedParts.push(...partResults);
    btn.textContent="Menyelesaikan upload...";
    await multipartRequest({action:"complete",key:r2Key,uploadId:multipartUploadId,parts:completedParts});
    multipartCompleted=true;
@@ -366,11 +426,10 @@ async function uploadPanel(){
    let thumbnail_url=null;
    if(thumb?.size){
     const tExt=(thumb.name.split(".").pop()||"jpg").toLowerCase();
-    thumbnailPath=state.user.id+"/thumb-"+crypto.randomUUID()+"."+tExt;
+    thumbnailPath=(admin&&state.user?.id?state.user.id:"public")+"/thumb-"+crypto.randomUUID()+"."+tExt;
     const {error:tErr}=await db.storage.from("video-thumbnails").upload(thumbnailPath,thumb,{contentType:thumb.type,upsert:false});
     if(!tErr){const {data:pub}=db.storage.from("video-thumbnails").getPublicUrl(thumbnailPath);thumbnail_url=pub.publicUrl}
    }
-   const admin=state.profile?.role==="admin";
    const access=admin&&f.get("access")==="exclusive";
    const {error:dbErr}=await db.from("videos").insert({
     title:String(f.get("title")).trim(),
@@ -379,16 +438,16 @@ async function uploadPanel(){
     storage_provider:"r2",
     thumbnail_url,
     is_exclusive:access,
-    published:true,
-    uploader_id:state.user.id
+    published:admin,
+    uploader_id:state.user?.id||null
    });
    if(dbErr)throw new Error("Video sudah terunggah, tetapi data katalog gagal disimpan: "+dbErr.message);
-   closeModal();toast("Video berhasil diunggah ke Dahono dan ditayangkan.");await loadVideos();
+   closeModal();toast(admin?"Berhasil menambahkan video. Video sudah ditayangkan.":"Berhasil menambahkan video. Kiriman menunggu persetujuan admin.");await loadVideos();
   }catch(error){
-   if(multipartUploadId&&r2Key&&uploadToken){
+   if(multipartUploadId&&r2Key){
     try{await multipartRequest({action:"abort",key:r2Key,uploadId:multipartUploadId})}catch(abortError){console.error("ASUPANMEME multipart abort:",abortError)}
    }
-   if(r2Key&&multipartCompleted){
+   if(r2Key&&multipartCompleted&&uploadToken){
     try{await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",Authorization:"Bearer "+uploadToken},body:JSON.stringify({key:r2Key})})}catch(_){}
    }
    if(thumbnailPath)await db.storage.from("video-thumbnails").remove([thumbnailPath]).catch(()=>{});
@@ -398,7 +457,7 @@ async function uploadPanel(){
   }
  };
 }
-async function adminVideosPanel(){if(state.profile?.role!=="admin"){toast("Akses admin ditolak.");return}let adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path,storage_provider").order("created_at",{ascending:false}).limit(100);if(adminResult.error?.code==="42703")adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path").order("created_at",{ascending:false}).limit(100);const {data,error}=adminResult;if(error){toast(error.message);return}modal(`<p class="eyebrow">VIDEO CONTROL</p><h2 id="modalTitle">Kelola video</h2><p>Terbitkan kiriman komunitas, ubah akses, atau hapus video.</p><div class="admin-list">${(data||[]).map(v=>'<div class="admin-row"><div><b>'+esc(v.title)+'</b><small>'+(v.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(v.published?'Tayang':'Menunggu persetujuan')+'</small><small>'+new Date(v.created_at).toLocaleString("id-ID")+'</small></div><div class="admin-actions">'+(!v.published?'<button data-publish="'+esc(v.id)+'">Terbitkan gratis</button>':'')+'<button data-toggle="'+esc(v.id)+'">'+(v.is_exclusive?'Jadikan gratis':'Jadikan eksklusif')+'</button><button data-delete-video="'+esc(v.id)+'">Hapus</button></div></div>').join("")||'<p>Belum ada video.</p>'}</div><button class="btn btn-ghost" id="backAdminMain">Kembali ke dashboard</button>`);$("#backAdminMain").onclick=adminPanel;$$("[data-publish]").forEach(b=>b.onclick=async()=>{const {error}=await db.from("videos").update({published:true}).eq("id",b.dataset.publish);if(error){toast(error.message);return}toast("Video diterbitkan sebagai Gratis.");adminVideosPanel();loadVideos()});$$("[data-toggle]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.toggle);const {error}=await db.from("videos").update({is_exclusive:!row.is_exclusive,published:true}).eq("id",row.id);if(error){toast(error.message);return}toast("Akses video diperbarui.");adminVideosPanel();loadVideos()});$$("[data-delete-video]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.deleteVideo);if(!confirm("Hapus video ini secara permanen?"))return;if(row.storage_path){if(row.storage_provider==="r2"){const {data:{session}}=await db.auth.getSession();const response=await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({key:row.storage_path})});const result=await response.json();if(!response.ok){toast("Gagal menghapus file R2: "+(result.error||"Kesalahan server"));return}}else{const {error:storageError}=await db.storage.from("media-videos").remove([row.storage_path]);if(storageError){toast("Gagal menghapus file Supabase: "+storageError.message);return}}}const {error}=await db.from("videos").delete().eq("id",row.id);if(error){toast(error.message);return}toast("Video dihapus.");adminVideosPanel();loadVideos()})}
+async function adminVideosPanel(){if(state.profile?.role!=="admin"){toast("Akses admin ditolak.");return}let adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path,storage_provider,video_url,description,thumbnail_url,duration,views").order("created_at",{ascending:false}).limit(100);if(adminResult.error?.code==="42703")adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path").order("created_at",{ascending:false}).limit(100);const {data,error}=adminResult;if(error){toast(error.message);return}modal(`<p class="eyebrow">VIDEO CONTROL</p><h2 id="modalTitle">Kelola video</h2><p>Terbitkan kiriman komunitas, ubah akses, atau hapus video.</p><div class="admin-list">${(data||[]).map(v=>'<div class="admin-row"><div><b>'+esc(v.title)+'</b><small>'+(v.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(v.published?'Tayang':'Menunggu persetujuan')+'</small><small>'+new Date(v.created_at).toLocaleString("id-ID")+'</small></div><div class="admin-actions">'+(!v.published?'<button data-preview-video="'+esc(v.id)+'">▶ Preview</button><button data-publish="'+esc(v.id)+'">Terbitkan gratis</button>':'')+'<button data-toggle="'+esc(v.id)+'">'+(v.is_exclusive?'Jadikan gratis':'Jadikan eksklusif')+'</button><button data-delete-video="'+esc(v.id)+'">Hapus</button></div></div>').join("")||'<p>Belum ada video.</p>'}</div><button class="btn btn-ghost" id="backAdminMain">Kembali ke dashboard</button>`);$("#backAdminMain").onclick=adminPanel;$$("[data-preview-video]").forEach(b=>b.onclick=()=>{const row=data.find(v=>v.id===b.dataset.previewVideo);if(row)openVideo(row.id,row,true)});$$("[data-publish]").forEach(b=>b.onclick=async()=>{const {error}=await db.from("videos").update({published:true}).eq("id",b.dataset.publish);if(error){toast(error.message);return}toast("Video diterbitkan sebagai Gratis.");adminVideosPanel();loadVideos()});$$("[data-toggle]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.toggle);const {error}=await db.from("videos").update({is_exclusive:!row.is_exclusive,published:true}).eq("id",row.id);if(error){toast(error.message);return}toast("Akses video diperbarui.");adminVideosPanel();loadVideos()});$$("[data-delete-video]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.deleteVideo);if(!confirm("Hapus video ini secara permanen?"))return;if(row.storage_path){if(row.storage_provider==="r2"){const {data:{session}}=await db.auth.getSession();const response=await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({key:row.storage_path})});const result=await response.json();if(!response.ok){toast("Gagal menghapus file R2: "+(result.error||"Kesalahan server"));return}}else{const {error:storageError}=await db.storage.from("media-videos").remove([row.storage_path]);if(storageError){toast("Gagal menghapus file Supabase: "+storageError.message);return}}}const {error}=await db.from("videos").delete().eq("id",row.id);if(error){toast(error.message);return}toast("Video dihapus.");adminVideosPanel();loadVideos()})}
 async function adminPanel(){
  if(state.profile?.role!=="admin"){toast("Akses admin ditolak. Pastikan role akun adalah admin.");return}
  if(!db){toast("Koneksi database belum tersedia.");return}
@@ -434,8 +493,8 @@ async function adminPanel(){
 }
 async function reviewPayment(id,approve){const note=approve?"Pembayaran diverifikasi":"Bukti pembayaran ditolak";const {error}=await db.rpc("review_payment",{submission_id:id,approve_payment:approve,admin_note:note});if(error){toast("Gagal memproses: "+error.message);return}toast(approve?"Pembayaran disetujui. Membership diaktifkan.":"Pembayaran ditolak.");adminPanel();loadProfile()}
 function nav(view){state.view=view;state.page=1;$$("[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===view));closeSidebar();renderVideos();document.querySelector(".section-heading.section-spaced")?.scrollIntoView({behavior:"smooth",block:"start"})}
-document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="membership")membershipPanel();if(a.dataset.action==="upload")uploadPanel()}});
-$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
+document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v)nav(v.dataset.view);const a=e.target.closest("[data-action]");if(a){if(a.dataset.action==="account")openAccount();if(a.dataset.action==="transactions")transactionHistoryPanel();if(a.dataset.action==="membership")membershipPanel();if(a.dataset.action==="upload")uploadPanel()}});
+$$("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;state.page=1;$$("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));renderVideos()});
 $("#searchInput").oninput=e=>{state.search=e.target.value.trim().toLowerCase();state.page=1;renderVideos()};
 $("#sortSelect").onchange=e=>{state.videos.sort((a,b)=>e.target.value==="popular"?(b.views||0)-(a.views||0):e.target.value==="az"?a.title.localeCompare(b.title):new Date(b.created_at)-new Date(a.created_at));state.page=1;renderVideos()};
 const sidebar=$("#sidebar"),sidebarOverlay=$("#sidebarOverlay");
