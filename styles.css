@@ -441,3 +441,20 @@ html,body{max-width:100%;overflow-x:hidden}
 @media(max-width:420px){
   #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:minmax(0,1fr)!important}
 }
+
+/* Player recommendations: homepage cards, maximum five, two columns on mobile. */
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px!important;width:min(100%,900px)!important;max-width:900px!important;margin-inline:auto!important}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .video-card{min-width:0}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .thumb{aspect-ratio:16/10}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .video-info{padding:9px 2px 0}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .video-info h3{font-size:12px}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .video-info p{font-size:10px}
+.exclusive-access-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;min-height:clamp(260px,42vw,430px);padding:28px 22px;text-align:center;background:radial-gradient(ellipse at 50% 35%,rgba(237,20,85,.16),transparent 62%),#08080c;border:1px solid #392331;border-radius:14px}
+.exclusive-access-icon{display:grid;place-items:center;width:54px;height:54px;margin-bottom:15px;border:1px solid #784056;border-radius:16px;background:#29131e;color:#ff80a4;font-size:25px}
+.exclusive-access-gate .eyebrow{margin-bottom:8px}
+.exclusive-access-gate h3{margin:0 0 8px;color:#fff;font:700 clamp(19px,3vw,25px) "Space Grotesk"}
+.exclusive-access-gate>p:not(.eyebrow){max-width:460px;margin:0 0 18px;color:#b5aeb8;font-size:13px;line-height:1.7}
+.exclusive-access-gate .btn{min-width:min(240px,100%)}
+.exclusive-access-gate .exclusive-access-note{margin:15px 0 0!important;font-size:11px!important;color:#918895!important}
+@media(max-width:800px){#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}}
+@media(max-width:390px){#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid .video-info h3{font-size:11px}}
