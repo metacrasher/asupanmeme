@@ -490,3 +490,126 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
 .modal.player-modal .player-description{text-align:center;max-width:760px;margin:8px auto 0;color:#c5c0ca;font-size:13px;line-height:1.7}
 .modal.player-modal .exclusive-channel-link{align-self:center}
 @media(max-width:600px){.exclusive-gate-shell{min-height:calc(100dvh - 10px);padding:12px 14px 28px}.exclusive-gate-toolbar{margin-bottom:28px}.exclusive-gate-card{min-height:260px;padding:30px 18px;border-radius:17px}.exclusive-gate-actions{gap:9px}.exclusive-gate-actions .btn,.exclusive-login-link{width:100%;max-width:360px}.exclusive-gate-title{margin-top:22px}.exclusive-channel-link{width:min(100%,360px)}}
+
+/* Player recommendations: two balanced rows, six cards per page, and touch-safe scrolling. */
+#modalBackdrop.player-mode{
+  display:block!important;
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  max-width:100vw;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+}
+#modalBackdrop.player-mode #mainModal.player-modal{
+  display:block;
+  width:100%;
+  max-width:100%;
+  min-height:100dvh;
+  height:auto;
+  max-height:none;
+  overflow:visible!important;
+  pointer-events:auto;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-page{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:min(1180px,100%);
+  min-height:100dvh;
+  height:auto;
+  overflow:visible!important;
+  padding-bottom:48px;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-recommendations{
+  position:relative;
+  display:block;
+  flex:0 0 auto;
+  clear:both;
+  width:min(100%,900px)!important;
+  max-width:900px!important;
+  min-width:0;
+  margin:30px auto 0!important;
+  padding:18px 0 24px;
+  overflow:visible!important;
+  pointer-events:auto;
+  scroll-margin-top:18px;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-recommendation-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 14px;
+  padding:0 2px;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:auto;
+  align-items:stretch;
+  gap:14px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0;
+  overflow:visible!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-card{
+  position:relative;
+  display:flex!important;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  width:100%;
+  min-width:0;
+  min-height:0;
+  max-width:100%;
+  margin:0;
+  padding:0;
+  pointer-events:auto!important;
+  touch-action:manipulation;
+  z-index:1;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-thumb{flex:0 0 auto;width:100%;aspect-ratio:16/9}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy{flex:1 1 auto}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-pagination{
+  position:relative;
+  display:flex;
+  justify-content:center;
+  width:100%;
+  min-height:44px;
+  margin:12px auto 0;
+  padding:8px 0 0;
+  overflow:visible!important;
+  pointer-events:auto;
+  z-index:2;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-pagination .pagination-controls{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:100%}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-pagination .page-btn{pointer-events:auto;touch-action:manipulation}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-empty{grid-column:1/-1;text-align:center;padding:20px 10px}
+@media(max-width:700px){
+ #modalBackdrop.player-mode #mainModal.player-modal .player-page{padding-left:14px!important;padding-right:14px!important}
+ #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+}
+@media(max-width:360px){
+ #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+ #modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy{padding:7px 7px 9px}
+ #modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy b{font-size:11px}
+}
+/* Prevent the homepage sort row and long headings from creating sideways overflow. */
+.content,.section-heading,.section-heading>div,.filter-row,.filter-tabs{min-width:0;max-width:100%}
+.section-heading>div{overflow-wrap:anywhere}
+.filter-row{flex-wrap:wrap;gap:10px}
+.filter-tabs{display:flex;flex-wrap:wrap;gap:7px}
+#sortSelect{display:block;min-width:0;width:auto;max-width:100%;flex:0 1 auto;white-space:normal}
+@media(max-width:520px){
+ .filter-row{align-items:stretch;justify-content:flex-start}
+ .filter-tabs{width:100%;max-width:100%}
+ #sortSelect{width:100%;max-width:100%;min-height:40px}
+ .section-heading{align-items:flex-start;gap:8px}
+ .section-heading h2{max-width:100%;overflow-wrap:anywhere}
+}
