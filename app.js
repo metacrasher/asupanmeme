@@ -201,10 +201,63 @@ function renderVideos(){
  $("#emptyState").classList.toggle("hidden",list.length>0);
  $("#pagination").innerHTML=paginationMarkup(list.length,state.page,pageSize,"page");
 }
-async function openVideo(id, previewVideo=null, adminPreview=false){
+function exclusiveChannelMarkup(){
+ return '<a class="exclusive-channel-link" href="https://whatsapp.com/channel/0029VbE3SGkCxoAqXnsbU135" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 3.5A11.8 11.8 0 0 0 2 17.7L.5 23.5l6-1.6A11.8 11.8 0 0 0 23.5 11a11.7 11.7 0 0 0-3-7.5ZM12 21a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.5.9.9-3.4-.2-.4A9.7 9.7 0 1 1 12 21Zm5.4-7.3c-.3-.2-1.8-.9-2.1-1s-.5-.2-.7.2-.8 1-1 1.1-.4.2-.7 0a8 8 0 0 1-2.4-1.5 9 9 0 0 1-1.6-2c-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6s-.7-1.7-1-2.3c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4s-1.2 1.2-1.2 2.8 1.2 3.2 1.4 3.4a13 13 0 0 0 5 4.4c.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.8-.8 2.1-1.5.3-.8.3-1.4.2-1.5s-.2-.3-.5-.4Z"/></svg><span>Gabung Saluran WhatsApp</span></a>';
+}
+async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
+ modal(`<div class="exclusive-gate-shell" data-exclusive-video="${esc(v.id)}">
+  <div class="exclusive-gate-toolbar"><span class="player-brand">ASUPANMEME <i>/ EXCLUSIVE</i></span><button type="button" class="player-close" id="exclusiveGateClose" aria-label="Tutup">×</button></div>
+  <div class="exclusive-gate-card" id="exclusiveGateCard" aria-live="polite">
+   <div class="lock-animation" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="21" width="30" height="22" rx="5"></rect><path d="M15 21v-7a9 9 0 0 1 18 0v7"></path><circle cx="24" cy="31" r="2.5"></circle><path d="M24 33.5v4"></path></svg></div>
+   <p class="eyebrow">MEMBERSHIP SECURITY CHECK</p><h2 id="exclusiveGateHeading">Memeriksa akses...</h2>
+   <p id="exclusiveGateMessage">Mohon tunggu sebentar. Kami sedang memverifikasi status membership kamu.</p>
+   <div class="exclusive-check-progress"><span></span></div>
+  </div>
+  <div class="exclusive-gate-actions" id="exclusiveGateActions">
+   ${!state.user?'<button type="button" class="exclusive-login-link" id="exclusiveLogin">Sudah langganan? Masuk</button>':''}
+   <button type="button" class="btn btn-primary" id="exclusiveBuy">Beli membership</button>
+  </div>
+  <h2 class="exclusive-gate-title">${esc(v.title)}</h2>
+  ${exclusiveChannelMarkup()}
+ </div>`);
+ $("#mainModal").classList.add("player-modal");
+ $("#modalBackdrop").classList.add("player-mode");
+ $("#exclusiveGateClose").onclick=()=>closeModal();
+ $("#exclusiveBuy").onclick=membershipPanel;
+ if($("#exclusiveLogin"))$("#exclusiveLogin").onclick=openAccount;
+ const profileCheck=state.user?loadProfile():Promise.resolve(null);
+ try{
+  await Promise.all([profileCheck,new Promise(resolve=>setTimeout(resolve,1000))]);
+ }catch(error){
+  const heading=$("#exclusiveGateHeading"),message=$("#exclusiveGateMessage"),card=$("#exclusiveGateCard");
+  if(!card||card.closest("[data-exclusive-video]")?.dataset.exclusiveVideo!==String(v.id))return;
+  if(heading)heading.textContent="Pemeriksaan gagal";
+  if(message)message.textContent="Status membership belum dapat diverifikasi. Periksa koneksi lalu coba lagi.";
+  card.classList.add("is-error");
+  const progress=card.querySelector(".exclusive-check-progress");if(progress)progress.remove();
+  const retry=document.createElement("button");retry.type="button";retry.className="btn btn-primary";retry.textContent="Coba periksa lagi";retry.onclick=()=>showExclusiveGate(v,preservedScrollY,adminPreview);
+  $("#exclusiveGateActions")?.prepend(retry);
+  console.error("ASUPANMEME exclusive access check:",error);
+  return;
+ }
+ const shell=$(".exclusive-gate-shell");
+ if(!shell||shell.dataset.exclusiveVideo!==String(v.id)||$("#modalBackdrop").classList.contains("hidden"))return;
+ if(hasPremium()){
+  closeModal();
+  openVideo(v.id,v,adminPreview,true);
+  return;
+ }
+ const card=$("#exclusiveGateCard");
+ card.classList.add("is-denied");
+ $("#exclusiveGateHeading").textContent="Akses Ditolak";
+ $("#exclusiveGateMessage").textContent=state.user?"Membership aktif tidak ditemukan pada akun ini. Pilih paket untuk membuka video eksklusif.":"Kamu belum masuk atau belum memiliki membership aktif. Masuk jika sudah berlangganan, atau pilih paket membership.";
+ const progress=card.querySelector(".exclusive-check-progress");if(progress)progress.remove();
+ const lock=card.querySelector(".lock-animation");if(lock)lock.classList.add("lock-denied");
+}
+async function openVideo(id, previewVideo=null, adminPreview=false, accessVerified=false){
  const preservedScrollY=window.scrollY;
  const v=previewVideo||state.videos.find(x=>String(x.id)===String(id));if(!v)return;
- if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Periksa akses video</h2><p>Tekan tombol di bawah untuk memeriksa login dan status membership akun kamu. Paket membership hanya ditampilkan jika akses premium belum aktif.</p><div class="form-stack"><button class="btn btn-primary" id="checkVideoAccess">Periksa akses</button></div>`);$("#checkVideoAccess").onclick=async()=>{const button=$("#checkVideoAccess");button.disabled=true;button.textContent="Memeriksa akses...";if(!state.user){button.disabled=false;button.textContent="Periksa akses";openAccount();toast("Silakan masuk terlebih dahulu untuk memeriksa akses video.");return}try{await loadProfile()}catch(error){button.disabled=false;button.textContent="Periksa akses";toast("Status membership belum dapat diperiksa. Coba lagi.");console.error("ASUPANMEME access check:",error);return}if(hasPremium()){closeModal();openVideo(v.id,v,adminPreview);return}membershipPanel()};return}
+ if(v.is_exclusive&&!adminPreview&&!accessVerified){await showExclusiveGate(v,preservedScrollY,adminPreview);return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
  modal(`<div class="player-page">
   <div class="player-toolbar">
@@ -216,10 +269,11 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
     <button type="button" class="player-close" id="playerClose" aria-label="Tutup pemutar">×</button>
    </div>
   </div>
+  <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
   <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
-  <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
   <p class="player-description">${esc(v.description||"")}</p>
+  ${exclusiveChannelMarkup()}
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
   <section class="player-recommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
