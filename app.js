@@ -275,7 +275,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false, accessVerifi
   <p class="player-description">${esc(v.description||"")}</p>
   ${v.is_exclusive?exclusiveChannelMarkup():""}
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
-  <section class="player-recommendations" aria-label="Video lainnya">
+  <section class="player-recommendations" id="playerRecommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
    <div class="recommendation-grid" id="recommendationGrid"></div>
    <div class="recommendation-pagination" id="recommendationPagination"></div>
@@ -376,15 +376,17 @@ async function openVideo(id, previewVideo=null, adminPreview=false, accessVerifi
 
 function renderRecommendations(currentId){
  const items=state.videos.filter(x=>String(x.id)!==String(currentId));
- const size=4,pages=Math.max(1,Math.ceil(items.length/size));
+ const size=6,pages=Math.max(1,Math.ceil(items.length/size));
  state.recommendationPage=Math.min(Math.max(1,state.recommendationPage),pages);
  const start=(state.recommendationPage-1)*size;
+ const section=$("#playerRecommendations");
+ if(section)section.dataset.currentVideoId=String(currentId);
  const grid=$("#recommendationGrid");if(!grid)return;
  grid.innerHTML=items.slice(start,start+size).map(x=>
-  '<button type="button" class="recommendation-card" data-recommendation-video="'+esc(x.id)+'"><span class="recommendation-thumb">'+
+  '<button type="button" class="recommendation-card" data-recommendation-video="'+esc(x.id)+'" aria-label="Putar '+esc(x.title)+'"><span class="recommendation-thumb">'+
   (x.thumbnail_url?'<img loading="lazy" src="'+esc(x.thumbnail_url)+'" alt="">':'<span>A.</span>')+
   '</span><span class="recommendation-copy"><b>'+esc(x.title)+'</b><small>'+Number(x.views||0).toLocaleString("id-ID")+' views</small></span></button>'
- ).join("")||'<p class="muted">Belum ada video lainnya.</p>';
+ ).join("")||'<p class="muted recommendation-empty">Belum ada video lainnya.</p>';
  const count=$("#recommendationCount");if(count)count.textContent=items.length+" video";
  const pager=$("#recommendationPagination");if(pager)pager.innerHTML=paginationMarkup(items.length,state.recommendationPage,size,"rec-page");
 }
@@ -571,8 +573,14 @@ document.addEventListener("click",event=>{
  const p=event.target.closest("[data-page]");
  if(p&&!p.disabled){state.page=Number(p.dataset.page)||1;renderVideos();return}
  const rp=event.target.closest("[data-rec-page]");
- if(rp&&!rp.disabled){state.recommendationPage=Number(rp.dataset.recPage)||1;const title=$("#modalTitle")?.textContent;const current=state.videos.find(x=>x.title===title);if(current)renderRecommendations(current.id);return}
- const rec=event.target.closest("[data-recommendation-video]");if(rec)openVideo(rec.dataset.recommendationVideo);
+ if(rp&&!rp.disabled){
+  const section=$("#playerRecommendations");
+  const currentId=section?.dataset.currentVideoId;
+  if(currentId){state.recommendationPage=Number(rp.dataset.recPage)||1;renderRecommendations(currentId)}
+  return;
+ }
+ const rec=event.target.closest("[data-recommendation-video]");
+ if(rec){event.preventDefault();openVideo(rec.dataset.recommendationVideo);return}
 });
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
 function toggleSidebar(){
