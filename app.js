@@ -273,7 +273,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false, accessVerifi
   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
   <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
   <p class="player-description">${esc(v.description||"")}</p>
-  ${exclusiveChannelMarkup()}
+  ${v.is_exclusive?exclusiveChannelMarkup():""}
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
   <section class="player-recommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
