@@ -189,7 +189,6 @@ function renderVideos(){
 async function openVideo(id, previewVideo=null, adminPreview=false){
  const preservedScrollY=window.scrollY;
  const v=previewVideo||state.videos.find(x=>String(x.id)===String(id));if(!v)return;
- if(v.is_exclusive&&!hasPremium()){modal(`<p class="eyebrow">MEMBERS ONLY</p><h2 id="modalTitle">Periksa akses video</h2><p>Tekan tombol di bawah untuk memeriksa login dan status membership akun kamu. Paket membership hanya ditampilkan jika akses premium belum aktif.</p><div class="form-stack"><button class="btn btn-primary" id="checkVideoAccess">Periksa akses</button></div>`);$("#checkVideoAccess").onclick=async()=>{const button=$("#checkVideoAccess");button.disabled=true;button.textContent="Memeriksa akses...";if(!state.user){button.disabled=false;button.textContent="Periksa akses";openAccount();toast("Silakan masuk terlebih dahulu untuk memeriksa akses video.");return}try{await loadProfile()}catch(error){button.disabled=false;button.textContent="Periksa akses";toast("Status membership belum dapat diperiksa. Coba lagi.");console.error("ASUPANMEME access check:",error);return}if(hasPremium()){closeModal();openVideo(v.id,v,adminPreview);return}membershipPanel()};return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
  modal(`<div class="player-page">
   <div class="player-toolbar">
@@ -208,8 +207,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
   <section class="player-recommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
-   <div class="recommendation-grid" id="recommendationGrid"></div>
-   <div class="recommendation-pagination" id="recommendationPagination"></div>
+   <div class="video-grid recommendation-grid" id="recommendationGrid"></div>
   </section>
  </div>`);
  $("#modalBackdrop").classList.add("player-mode");
@@ -218,6 +216,10 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
  $("#playerClose").onclick=()=>closeModal();
  state.recommendationPage=1;renderRecommendations(v.id);
  requestAnimationFrame(()=>window.scrollTo({top:preservedScrollY,left:0,behavior:"instant"}));
+ if(v.is_exclusive&&!hasPremium()){
+  const player=$("#videoPlayer");player.innerHTML='<div class="exclusive-access-gate"><span class="exclusive-access-icon">✦</span><p class="eyebrow">ASUPANMEME EXCLUSIVE</p><h3>Periksa akses untuk menonton</h3><p>Video ini khusus anggota premium. Periksa status akun kamu terlebih dahulu untuk melanjutkan.</p><button type="button" class="btn btn-primary" id="checkVideoAccess">Periksa akses</button><p class="exclusive-access-note">Jika membership belum aktif, kamu akan diarahkan ke halaman pembelian eksklusif.</p></div>';
+  $("#checkVideoAccess").onclick=async()=>{const button=$("#checkVideoAccess");if(!button)return;if(!state.user){openAccount();toast("Silakan masuk terlebih dahulu, lalu buka kembali video ini untuk memeriksa akses.");return}button.disabled=true;button.textContent="Memeriksa akses...";try{await loadProfile()}catch(error){button.disabled=false;button.textContent="Coba periksa lagi";toast("Status membership gagal diperiksa. Periksa koneksi lalu coba lagi.");console.error("ASUPANMEME access check:",error);return}if(hasPremium()){closeModal();openVideo(v.id,v,adminPreview);return}await membershipPanel()};return;
+ }
  try{
   let playbackUrl=v.video_url;
   if(v.storage_path){
@@ -306,18 +308,10 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
 }
 
 function renderRecommendations(currentId){
- const items=state.videos.filter(x=>String(x.id)!==String(currentId));
- const size=4,pages=Math.max(1,Math.ceil(items.length/size));
- state.recommendationPage=Math.min(Math.max(1,state.recommendationPage),pages);
- const start=(state.recommendationPage-1)*size;
+ const items=state.videos.filter(x=>String(x.id)!==String(currentId)).slice(0,5);
  const grid=$("#recommendationGrid");if(!grid)return;
- grid.innerHTML=items.slice(start,start+size).map(x=>
-  '<button type="button" class="recommendation-card" data-recommendation-video="'+esc(x.id)+'"><span class="recommendation-thumb">'+
-  (x.thumbnail_url?'<img loading="lazy" src="'+esc(x.thumbnail_url)+'" alt="">':'<span>A.</span>')+
-  '</span><span class="recommendation-copy"><b>'+esc(x.title)+'</b><small>'+Number(x.views||0).toLocaleString("id-ID")+' views</small></span></button>'
- ).join("")||'<p class="muted">Belum ada video lainnya.</p>';
- const count=$("#recommendationCount");if(count)count.textContent=items.length+" video";
- const pager=$("#recommendationPagination");if(pager)pager.innerHTML=paginationMarkup(items.length,state.recommendationPage,size,"rec-page");
+ grid.innerHTML=items.map(card).join("")||'<p class="muted">Belum ada video lainnya.</p>';
+ const count=$("#recommendationCount");if(count)count.textContent=items.length+" dari maksimal 5 video";
 }
 
 async function membershipPanel(){
