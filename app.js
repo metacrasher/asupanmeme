@@ -226,9 +226,11 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
  $("#exclusiveBuy").onclick=membershipPanel;
  if($("#exclusiveLogin"))$("#exclusiveLogin").onclick=openAccount;
  const profileCheck=state.user?loadProfile():Promise.resolve(null);
- try{
-  await Promise.all([profileCheck,new Promise(resolve=>setTimeout(resolve,1000))]);
- }catch(error){
+ const minimumWait=new Promise(resolve=>setTimeout(resolve,1000));
+ let profileError=null;
+ try{await profileCheck}catch(error){profileError=error}
+ await minimumWait;
+ if(profileError){const error=profileError;
   const heading=$("#exclusiveGateHeading"),message=$("#exclusiveGateMessage"),card=$("#exclusiveGateCard");
   if(!card||card.closest("[data-exclusive-video]")?.dataset.exclusiveVideo!==String(v.id))return;
   if(heading)heading.textContent="Pemeriksaan gagal";
