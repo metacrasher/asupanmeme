@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        url: "https://asupanmeme.web.id/api/telegram",
+        url: "https://www.asupanmeme.web.id/api/telegram",
         secret_token: WEBHOOK_SECRET,
         allowed_updates: ["message"],
         drop_pending_updates: false
