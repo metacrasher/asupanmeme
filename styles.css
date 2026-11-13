@@ -384,3 +384,60 @@ html,body{max-width:100%;overflow-x:hidden}
  .modal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 }
 @media(max-width:420px){.modal.player-modal .recommendation-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Final player layout constraints: apply on desktop and mobile after all legacy rules. */
+#modalBackdrop.player-mode #mainModal.player-modal .player-page{
+  width:min(100%,980px)!important;
+  max-width:980px!important;
+  min-width:0!important;
+  margin-inline:auto!important;
+  padding:16px clamp(14px,2.5vw,24px) 36px!important;
+  box-sizing:border-box!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .video-player{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .video-frame{
+  width:min(100%,900px)!important;
+  max-width:900px!important;
+  min-width:0!important;
+  max-height:56dvh!important;
+  margin-inline:auto!important;
+  box-sizing:border-box!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .video-frame video{
+  width:100%!important;
+  max-width:100%!important;
+  max-height:56dvh!important;
+  object-fit:contain!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .video-controls,
+#modalBackdrop.player-mode #mainModal.player-modal .player-recommendations{
+  width:min(100%,900px)!important;
+  max-width:900px!important;
+  min-width:0!important;
+  margin-inline:auto!important;
+  box-sizing:border-box!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:12px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+}
+@media(max-width:700px){
+  #modalBackdrop.player-mode #mainModal.player-modal .player-page{width:100%!important;max-width:100%!important;padding:12px 14px 28px!important}
+  #modalBackdrop.player-mode #mainModal.player-modal .video-frame,
+  #modalBackdrop.player-mode #mainModal.player-modal .video-frame video{max-height:48dvh!important}
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+}
+@media(max-width:420px){
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{grid-template-columns:minmax(0,1fr)!important}
+}
