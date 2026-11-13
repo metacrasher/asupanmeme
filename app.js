@@ -206,12 +206,12 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
   <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
   <p class="player-description">${esc(v.description||v.title)}</p>
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
-  <div class="player-channel"><a href="https://whatsapp.com/channel/0029VbE3SGkCxoAqXnsbU135" target="_blank" rel="noopener noreferrer">◉ &nbsp; Join Saluran WhatsApp</a></div>
   <section class="player-recommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
    <div class="recommendation-grid" id="recommendationGrid"></div>
    <div class="recommendation-pagination" id="recommendationPagination"></div>
   </section>
+  <div class="player-channel"><a href="https://whatsapp.com/channel/0029VbE3SGkCxoAqXnsbU135" target="_blank" rel="noopener noreferrer">◉ &nbsp; Join Saluran WhatsApp</a></div>
  </div>`);
  $("#modalBackdrop").classList.add("player-mode");
  $("#mainModal").classList.add("player-modal");
