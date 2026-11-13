@@ -133,7 +133,7 @@ async function renderMembershipHero(){
  let plans=[{name:"1 Bulan",price:35000,duration_days:30},{name:"3 Bulan",price:90000,duration_days:90}];
  if(db){try{const {data,error}=await db.from("subscription_plans").select("name,price,duration_days").eq("active",true).order("price");if(!error&&data?.length)plans=data}catch(error){console.warn("ASUPANMEME hero plans:",error)}}
  const lowest=plans.reduce((a,b)=>Number(a.price)<Number(b.price)?a:b);
- priceNode.textContent="Mulai "+money(lowest.price)+" · "+plans.map(p=>esc(p.name)+" "+money(p.price)).join(" / ");
+ priceNode.textContent="Langganan "+esc(lowest.name)+" — "+money(lowest.price);
 }
 async function loadVideos(){
  if(!db){state.videos=demoVideos;renderVideos();return}
