@@ -456,3 +456,37 @@ html,body{max-width:100%;overflow-x:hidden}
 html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden!important;overflow-y:auto!important}body{overscroll-behavior-y:auto!important}.app-shell{height:auto!important;min-height:100vh}.main{height:auto!important;min-height:100vh}.content{flex:1 0 auto}.footer{flex-shrink:0}
 @media(max-width:1150px){.membership-hero{margin-inline:-28px}}@media(max-width:800px){.membership-hero{min-height:350px;margin:0 -16px 28px;padding:54px 20px 48px}.membership-hero h1{font-size:39px}.membership-hero-copy{font-size:16px}.membership-hero-cta{min-height:60px;border-radius:13px}.channel-cta{margin-top:34px;padding:25px 18px}.video-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.card-access-button{min-height:36px;padding:0 10px;font-size:10px}}
 @media(max-width:390px){.membership-hero h1{font-size:34px}.membership-hero{padding-inline:16px}.video-info h3{font-size:12px}.video-info .video-caption{font-size:11px}}
+
+/* Exclusive video access gate and in-player membership prompts */
+.exclusive-gate-shell{width:100%;max-width:900px;min-height:calc(100vh - 32px);margin:0 auto;padding:18px clamp(14px,3vw,28px) 34px;display:flex;flex-direction:column;align-items:center;box-sizing:border-box}
+.exclusive-gate-toolbar{width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:clamp(28px,7vh,70px)}
+.exclusive-gate-card{width:min(100%,620px);min-height:300px;padding:38px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px solid #39323f;border-radius:22px;background:radial-gradient(ellipse at 50% 0%,#33202c 0,#17141d 48%,#111017 100%);box-shadow:0 22px 70px #0007;box-sizing:border-box}
+.exclusive-gate-card h2{margin:15px 0 8px;color:#fff;font:700 clamp(24px,4vw,34px) "Space Grotesk",sans-serif}
+.exclusive-gate-card>p:not(.eyebrow){max-width:460px;margin:0;color:#bdb8c5;font-size:13px;line-height:1.7}
+.lock-animation{width:76px;height:76px;display:grid;place-items:center;border:1px solid #ef5d8b66;border-radius:22px;background:#ed14551c;color:#ff6b98;font-size:42px;animation:exclusiveLockPulse 1s ease-in-out infinite;position:relative}
+.lock-animation:before{content:"";position:absolute;inset:-9px;border:1px solid #ed145544;border-radius:28px;animation:exclusiveLockRing 1.4s ease-out infinite}
+.lock-animation svg{width:45px;height:45px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;animation:exclusiveLockJiggle .8s ease-in-out infinite}
+@keyframes exclusiveLockPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ed145500}50%{transform:scale(1.06);box-shadow:0 0 30px #ed145544}}
+@keyframes exclusiveLockRing{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.35);opacity:0}}
+@keyframes exclusiveLockJiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
+.exclusive-check-progress{width:min(260px,80%);height:4px;margin-top:26px;overflow:hidden;border-radius:99px;background:#ffffff18}
+.exclusive-check-progress span{display:block;width:35%;height:100%;border-radius:99px;background:#ed1455;animation:exclusiveProgress 1s ease-in-out forwards}
+@keyframes exclusiveProgress{from{transform:translateX(-110%)}to{transform:translateX(310%)}}
+.exclusive-gate-card.is-denied{border-color:#a83d5c;background:radial-gradient(ellipse at 50% 0%,#3a1b29 0,#19131b 62%)}
+.exclusive-gate-card.is-denied h2{color:#ff779b}
+.exclusive-gate-card.is-error{border-color:#a98543}
+.lock-animation.lock-denied{animation:none;background:#4a1727;color:#ff7398}
+.lock-animation.lock-denied svg{animation:none}
+.exclusive-gate-actions{width:min(100%,620px);display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0 12px}
+.exclusive-gate-actions .btn{min-width:190px;min-height:46px}
+.exclusive-login-link{min-height:44px;padding:0 16px;border:1px solid #514657;border-radius:11px;background:#211b26;color:#f4dce5;font-size:13px;font-weight:800;cursor:pointer}
+.exclusive-login-link:hover{border-color:#ed5d8b;color:#fff}
+.exclusive-gate-title{margin:28px 0 8px;text-align:center;color:#fff;font:700 clamp(18px,3vw,24px) "Space Grotesk",sans-serif}
+.exclusive-channel-link{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:44px;margin:14px auto 0;padding:0 19px;border:1px solid #287b50;border-radius:12px;background:#116b40;color:#fff;text-decoration:none;font-size:12px;font-weight:800;box-shadow:0 8px 25px #0a4d2d55}
+.exclusive-channel-link:hover{background:#168b53;transform:translateY(-1px)}
+.exclusive-channel-link svg{width:19px;height:19px;fill:currentColor;flex:0 0 auto}
+.modal.player-modal .player-title{margin:22px 0 5px;text-align:center}
+.modal.player-modal [data-view-count]{margin:0 0 8px;text-align:center;color:#aaa5b1;font-size:12px}
+.modal.player-modal .player-description{text-align:center;max-width:760px;margin:8px auto 0;color:#c5c0ca;font-size:13px;line-height:1.7}
+.modal.player-modal .exclusive-channel-link{align-self:center}
+@media(max-width:600px){.exclusive-gate-shell{min-height:calc(100dvh - 10px);padding:12px 14px 28px}.exclusive-gate-toolbar{margin-bottom:28px}.exclusive-gate-card{min-height:260px;padding:30px 18px;border-radius:17px}.exclusive-gate-actions{gap:9px}.exclusive-gate-actions .btn,.exclusive-login-link{width:100%;max-width:360px}.exclusive-gate-title{margin-top:22px}.exclusive-channel-link{width:min(100%,360px)}}
