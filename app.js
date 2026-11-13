@@ -190,7 +190,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
  const preservedScrollY=window.scrollY;
  const v=previewVideo||state.videos.find(x=>String(x.id)===String(id));if(!v)return;
  let membershipOfferLabel="Lihat paket membership";
- if(!state.user&&db){try{const {data:offer}=await db.from("subscription_plans").select("name,price,duration_days").eq("active",true).order("price").limit(1).maybeSingle();if(offer)membershipOfferLabel="Langganan "+money(offer.price)+" / "+(Number(offer.duration_days)===0?"permanen":offer.duration_days+" hari")}catch(error){console.warn("ASUPANMEME membership offer:",error)}}
+ if(!state.user&&v.is_exclusive&&db){try{const {data:offer}=await db.from("subscription_plans").select("name,price,duration_days").eq("active",true).order("price").limit(1).maybeSingle();if(offer)membershipOfferLabel="Langganan "+money(offer.price)+" / "+(Number(offer.duration_days)===0?"permanen":offer.duration_days+" hari")}catch(error){console.warn("ASUPANMEME membership offer:",error)}}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
  modal(`<div class="player-page">
   <div class="player-toolbar">
@@ -202,7 +202,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false){
     <button type="button" class="player-close" id="playerClose" aria-label="Tutup pemutar">×</button>
    </div>
   </div>
-  ${!state.user?`<section class="player-membership-banner"><span class="eyebrow">ASUPANMEME EXCLUSIVE</span><h2>Nikmati video eksklusif tanpa iklan</h2><button type="button" class="btn btn-primary" id="playerMembership">${esc(membershipOfferLabel)}</button><button type="button" class="player-login-link" id="playerLogin">⇥ Sudah langganan? Masuk</button></section>`:""}
+  ${!state.user&&v.is_exclusive?`<section class="player-membership-banner"><span class="eyebrow">ASUPANMEME EXCLUSIVE</span><h2>Nikmati video eksklusif tanpa iklan</h2><button type="button" class="btn btn-primary" id="playerMembership">${esc(membershipOfferLabel)}</button><button type="button" class="player-login-link" id="playerLogin">⇥ Sudah langganan? Masuk</button></section>`:""}
   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
   <p class="player-meta" data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views · Terbaru</p>
   <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
