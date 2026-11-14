@@ -24,7 +24,20 @@ create policy "Published albums are readable" on public.albums for select to ano
 drop policy if exists "Admins manage albums" on public.albums;
 create policy "Admins manage albums" on public.albums for all to authenticated using(public.is_admin()) with check(public.is_admin());
 drop policy if exists "Published album items are readable" on public.album_videos;
-create policy "Published album items are readable" on public.album_videos for select to anon,authenticated using(exists(select 1 from public.albums a where a.id=album_videos.album_id and (a.published=true or public.is_admin())));
+create policy "Published album items are readable" on public.album_videos for select to anon,authenticated using(exists(
+ select 1 from public.albums a
+ where a.id=album_videos.album_id and a.published=true
+ and (
+  public.is_admin()
+  or a.is_exclusive=false
+  or exists(
+   select 1 from public.profiles p
+   where p.id=auth.uid()
+   and p.subscription_status='active'
+   and (p.subscription_expires_at is null or p.subscription_expires_at>now())
+  )
+ )
+));
 drop policy if exists "Admins manage album items" on public.album_videos;
 create policy "Admins manage album items" on public.album_videos for all to authenticated using(public.is_admin()) with check(public.is_admin());
 grant select on public.albums,public.album_videos to anon,authenticated;
