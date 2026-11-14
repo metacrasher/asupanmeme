@@ -576,14 +576,14 @@ async function loadAlbums(){
 }
 function renderAlbums(){
  const root=$("#albumCarousel");if(!root)return;
- const albums=state.albums||[],size=3,pages=Math.max(1,Math.ceil(albums.length/size));
- state.albumPage=Math.min(Math.max(0,state.albumPage||0),pages-1);
- const shown=albums.slice(state.albumPage*size,(state.albumPage+1)*size);
+ const albums=state.albums||[],size=3;
+ state.albumPage=Math.min(Math.max(0,state.albumPage||0),Math.max(0,albums.length-1));
+ const shown=albums.length?Array.from({length:Math.min(size,albums.length)},(_,i)=>albums[(state.albumPage+i)%albums.length]):[];
  root.innerHTML=shown.length?shown.map(a=>'<button class="album-card" type="button" data-open-album="'+esc(a.id)+'"><span class="album-cover">'+(a.cover_url?'<img loading="lazy" src="'+esc(a.cover_url)+'" alt="">':'<span class="album-cover-placeholder">A.</span>')+(a.is_exclusive?'<span class="album-lock">🔒</span>':'')+'<span class="album-video-count">'+(a.videos||[]).length+' VIDEO</span></span><span class="album-card-title">'+esc(a.title)+'</span><span class="album-card-meta">'+(a.is_exclusive?'MEMBERSHIP':'KOLEKSI VIDEO')+'</span></button>').join(""):'<div class="album-empty">Album pilihan akan segera hadir.</div>';
- const dots=$("#albumDots");if(dots)dots.innerHTML=Array.from({length:pages},(_,i)=>'<button type="button" class="album-dot '+(i===state.albumPage?'active':'')+'" data-album-page="'+i+'" aria-label="Halaman album '+(i+1)+'"></button>').join("");
- if($("#albumPrev"))$("#albumPrev").disabled=state.albumPage===0;
- if($("#albumNext"))$("#albumNext").disabled=state.albumPage>=pages-1;
- if($("#albumPageCount"))$("#albumPageCount").textContent=albums.length?(state.albumPage+1)+" / "+pages+" · "+albums.length+" album":"0 album";
+ const dots=$("#albumDots");if(dots)dots.innerHTML=Array.from({length:albums.length},(_,i)=>'<button type="button" class="album-dot '+(i===state.albumPage?'active':'')+'" data-album-page="'+i+'" aria-label="Halaman album '+(i+1)+'"></button>').join("");
+ if($("#albumPrev"))$("#albumPrev").disabled=albums.length<2;
+ if($("#albumNext"))$("#albumNext").disabled=albums.length<2;
+ if($("#albumPageCount"))$("#albumPageCount").textContent=albums.length+" album";
 }
 function openAlbum(id){
  const album=(state.albums||[]).find(a=>String(a.id)===String(id));if(!album)return;
@@ -681,8 +681,8 @@ document.addEventListener("click",event=>{
  if(rec){event.preventDefault();openVideo(rec.dataset.recommendationVideo);return}
 });
 document.addEventListener("click",event=>{const a=event.target.closest("[data-open-album]");if(a){openAlbum(a.dataset.openAlbum);return}const v=event.target.closest("[data-album-video]");if(v){openVideo(v.dataset.albumVideo);return}const p=event.target.closest("[data-album-page]");if(p){state.albumPage=Number(p.dataset.albumPage)||0;renderAlbums()}});
-$("#albumPrev")?.addEventListener("click",()=>{state.albumPage=Math.max(0,state.albumPage-1);renderAlbums()});
-$("#albumNext")?.addEventListener("click",()=>{state.albumPage=Math.min(Math.max(0,Math.ceil((state.albums||[]).length/3)-1),state.albumPage+1);renderAlbums()});
+$("#albumPrev")?.addEventListener("click",()=>{const total=(state.albums||[]).length;state.albumPage=total?(state.albumPage-1+total)%total:0;renderAlbums()});
+$("#albumNext")?.addEventListener("click",()=>{const total=(state.albums||[]).length;state.albumPage=total?(state.albumPage+1)%total:0;renderAlbums()});
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
 function toggleSidebar(){
  const opening=!sidebar.classList.contains("open");
