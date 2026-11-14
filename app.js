@@ -649,7 +649,7 @@ async function adminAlbumsPanel(){
    save.disabled=false;save.textContent=id?"Perbarui album":"Simpan album";
   }
  };
- $$("#albumForm [data-edit-album]").forEach(b=>b.onclick=async()=>{
+ $("[data-edit-album]").forEach(b=>b.onclick=async()=>{
   const a=albums.find(x=>x.id===b.dataset.editAlbum);if(!a)return;
   const items=await db.from("album_videos").select("video_id").eq("album_id",a.id);
   if(items.error){toast("Gagal membaca video dalam album: "+items.error.message);return}
@@ -660,7 +660,7 @@ async function adminAlbumsPanel(){
   form.querySelector('[type="submit"]').textContent="Perbarui album";
   updatePicker();form.scrollIntoView({behavior:"smooth",block:"start"});
  });
- $$("#albumForm [data-delete-album]").forEach(b=>b.onclick=async()=>{
+ $("[data-delete-album]").forEach(b=>b.onclick=async()=>{
   if(!confirm("Hapus album ini? Video aslinya tidak akan dihapus."))return;
   const result=await db.from("albums").delete().eq("id",b.dataset.deleteAlbum);
   if(result.error){toast(result.error.message);return}
