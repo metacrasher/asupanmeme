@@ -667,3 +667,21 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
 .album-video-picker label{display:flex;align-items:center;gap:9px;font-size:12px;color:#c8c8d0}
 @media(max-width:760px){.album-carousel{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.contributor-bar{align-items:flex-start}.contributor-bar p{font-size:12px}.album-cover{aspect-ratio:4/3}}
 @media(max-width:420px){.album-carousel{gap:11px}.contributor-upload{min-width:98px}.contributor-bar{gap:10px}}
+
+
+/* Admin dashboard content management cards */
+.admin-management{margin:20px 0 26px;padding:18px;border:1px solid #39313e;border-radius:16px;background:linear-gradient(145deg,#1c1720,#121117)}
+.admin-management-heading{margin-bottom:14px}
+.admin-management-heading .eyebrow{margin:0 0 5px;color:#ff8eae;font-size:10px;font-weight:800;letter-spacing:1.5px}
+.admin-management-heading h3{margin:0 0 5px;font-size:17px;line-height:1.35;color:#fff}
+.admin-management-heading p:last-child{margin:0;color:#aaa3b0;font-size:12px;line-height:1.6}
+.admin-management-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.admin-manage-card{width:100%;min-width:0;display:flex;align-items:center;gap:13px;padding:14px;text-align:left;color:#f8f5fa;background:#211c26;border:1px solid #403744;border-radius:13px;cursor:pointer;transition:border-color .18s ease,background .18s ease,transform .18s ease}
+.admin-manage-card:hover,.admin-manage-card:focus-visible{background:#2a202c;border-color:#d84a79;outline:none;transform:translateY(-1px)}
+.admin-manage-albums{background:linear-gradient(110deg,#321725,#241b29);border-color:#8b3d5a;box-shadow:inset 3px 0 #f05a8a,0 8px 24px #0002}
+.admin-manage-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:12px;background:#ffffff0d;color:#ff8eae;font-size:21px;font-weight:800}
+.admin-manage-copy{display:grid;gap:4px;min-width:0;flex:1}
+.admin-manage-copy strong{font-size:13px;line-height:1.4;font-weight:800;color:#fff}
+.admin-manage-copy small{font-size:11px;line-height:1.5;color:#b9b0be;font-weight:500}
+.admin-manage-arrow{flex:0 0 auto;color:#ff8eae;font-size:21px;font-weight:700}
+@media(min-width:560px){.admin-management-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-manage-albums{grid-column:1/-1}}
