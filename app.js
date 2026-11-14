@@ -209,53 +209,78 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
   <div class="exclusive-gate-toolbar"><span class="player-brand">ASUPANMEME <i>/ EXCLUSIVE</i></span><button type="button" class="player-close" id="exclusiveGateClose" aria-label="Tutup">×</button></div>
   <div class="exclusive-gate-card" id="exclusiveGateCard" aria-live="polite">
    <div class="lock-animation" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="21" width="30" height="22" rx="5"></rect><path d="M15 21v-7a9 9 0 0 1 18 0v7"></path><circle cx="24" cy="31" r="2.5"></circle><path d="M24 33.5v4"></path></svg></div>
-   <p class="eyebrow">MEMBERSHIP SECURITY CHECK</p><h2 id="exclusiveGateHeading">Memeriksa akses...</h2>
-   <p id="exclusiveGateMessage">Mohon tunggu sebentar. Kami sedang memverifikasi status membership kamu.</p>
-   <div class="exclusive-check-progress"><span></span></div>
+   <p class="eyebrow">EXCLUSIVE MEMBERSHIP</p><h2 id="exclusiveGateHeading">Video khusus member</h2>
+   <p id="exclusiveGateMessage">Kamu bisa membuka halaman video ini, tetapi pemutaran hanya tersedia untuk akun dengan membership aktif. Tekan Periksa Akses untuk memverifikasi akun.</p>
+   <div class="exclusive-check-progress" id="exclusiveCheckProgress"><span></span></div>
   </div>
   <div class="exclusive-gate-actions" id="exclusiveGateActions">
-   ${!state.user?'<button type="button" class="exclusive-login-link" id="exclusiveLogin">Sudah langganan? Masuk</button>':''}
-   <button type="button" class="btn btn-primary" id="exclusiveBuy">Beli membership</button>
+   <button type="button" class="btn btn-primary" id="exclusiveCheckButton"><span aria-hidden="true">🔒</span> Periksa Akses</button>
+   ${!state.user?'<button type="button" class="exclusive-login-link" id="exclusiveLogin">Sudah langganan? Masuk</button><button type="button" class="exclusive-login-link" id="exclusiveSignup">Belum punya akun? Daftar</button>':''}
   </div>
   <h2 class="exclusive-gate-title">${esc(v.title)}</h2>
+  ${v.description?'<p class="player-description">'+esc(v.description)+'</p>':''}
+  <p class="player-hint">Video terkunci sampai membership aktif berhasil diverifikasi.</p>
   ${exclusiveChannelMarkup()}
  </div>`);
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
  $("#exclusiveGateClose").onclick=()=>closeModal();
- $("#exclusiveBuy").onclick=membershipPanel;
  if($("#exclusiveLogin"))$("#exclusiveLogin").onclick=openAccount;
- const profileCheck=state.user?loadProfile():Promise.resolve(null);
- const minimumWait=new Promise(resolve=>setTimeout(resolve,1000));
- let profileError=null;
- try{await profileCheck}catch(error){profileError=error}
- await minimumWait;
- if(profileError){const error=profileError;
-  const heading=$("#exclusiveGateHeading"),message=$("#exclusiveGateMessage"),card=$("#exclusiveGateCard");
-  if(!card||card.closest("[data-exclusive-video]")?.dataset.exclusiveVideo!==String(v.id))return;
-  if(heading)heading.textContent="Pemeriksaan gagal";
-  if(message)message.textContent="Status membership belum dapat diverifikasi. Periksa koneksi lalu coba lagi.";
-  card.classList.add("is-error");
-  const progress=card.querySelector(".exclusive-check-progress");if(progress)progress.remove();
-  const retry=document.createElement("button");retry.type="button";retry.className="btn btn-primary";retry.textContent="Coba periksa lagi";retry.onclick=()=>showExclusiveGate(v,preservedScrollY,adminPreview);
-  $("#exclusiveGateActions")?.prepend(retry);
-  console.error("ASUPANMEME exclusive access check:",error);
-  return;
- }
- const shell=$(".exclusive-gate-shell");
- if(!shell||shell.dataset.exclusiveVideo!==String(v.id)||$("#modalBackdrop").classList.contains("hidden"))return;
- if(hasPremium()){
-  // Replace the gate in-place so the browser history stays on the player,
-  // rather than navigating back and accidentally closing the newly opened player.
-  openVideo(v.id,v,adminPreview,true);
-  return;
- }
- const card=$("#exclusiveGateCard");
- card.classList.add("is-denied");
- $("#exclusiveGateHeading").textContent="Akses Ditolak";
- $("#exclusiveGateMessage").textContent=state.user?"Membership aktif tidak ditemukan pada akun ini. Pilih paket untuk membuka video eksklusif.":"Kamu belum masuk atau belum memiliki membership aktif. Masuk jika sudah berlangganan, atau pilih paket membership.";
- const progress=card.querySelector(".exclusive-check-progress");if(progress)progress.remove();
- const lock=card.querySelector(".lock-animation");if(lock)lock.classList.add("lock-denied");
+ if($("#exclusiveSignup"))$("#exclusiveSignup").onclick=signupPanel;
+ const checkButton=$("#exclusiveCheckButton");
+ let checking=false;
+ checkButton.onclick=async()=>{
+  if(checking)return;
+  checking=true;
+  checkButton.disabled=true;
+  checkButton.innerHTML='<span aria-hidden="true">🔒</span> Memeriksa akses...';
+  const card=$("#exclusiveGateCard");
+  const heading=$("#exclusiveGateHeading");
+  const message=$("#exclusiveGateMessage");
+  const progress=$("#exclusiveCheckProgress");
+  card?.classList.remove("is-denied","is-error");
+  card?.classList.add("is-checking");
+  if(heading)heading.textContent="Memeriksa akses...";
+  if(message)message.textContent="Mohon tunggu 1 detik. Kami sedang memverifikasi status membership kamu.";
+  if(progress)progress.hidden=false;
+  const minimumWait=new Promise(resolve=>setTimeout(resolve,1000));
+  let profileError=null;
+  try{if(state.user)await loadProfile()}catch(error){profileError=error}
+  await minimumWait;
+  const shell=$(".exclusive-gate-shell");
+  if(!shell||shell.dataset.exclusiveVideo!==String(v.id)||$("#modalBackdrop").classList.contains("hidden"))return;
+  if(profileError){
+   card?.classList.add("is-error");
+   if(heading)heading.textContent="Pemeriksaan gagal";
+   if(message)message.textContent="Status membership belum dapat diverifikasi. Periksa koneksi lalu coba lagi.";
+   checkButton.disabled=false;
+   checkButton.innerHTML='<span aria-hidden="true">🔒</span> Coba Periksa Lagi';
+   checkButton.classList.add("is-retry");
+   console.error("ASUPANMEME exclusive access check:",profileError);
+   checking=false;
+   return;
+  }
+  if(hasPremium()){
+   openVideo(v.id,v,adminPreview,true);
+   return;
+  }
+  card?.classList.remove("is-checking");
+  card?.classList.add("is-denied");
+  if(heading)heading.textContent=state.user?"Membership belum aktif":"Kamu belum masuk";
+  if(message)message.textContent=state.user
+   ?"Akun kamu belum memiliki membership aktif. Video tetap terkunci. Pilih paket untuk membuka akses."
+   :"Kamu masih bisa melihat halaman video, tetapi belum masuk ke akun. Masuk jika sudah berlangganan atau daftar akun baru. Video tidak dapat diputar sebelum membership aktif.";
+  if(progress)progress.hidden=true;
+  const lock=card?.querySelector(".lock-animation");if(lock)lock.classList.add("lock-denied");
+  checkButton.disabled=false;
+  checkButton.innerHTML='<span aria-hidden="true">🔒</span> Periksa Akses Lagi';
+  checkButton.classList.add("is-retry");
+  if(state.user&&!$("#exclusiveBuy")){
+   const buy=document.createElement("button");buy.type="button";buy.id="exclusiveBuy";buy.className="btn btn-primary";buy.textContent="Lihat Paket Membership";buy.onclick=membershipPanel;
+   $("#exclusiveGateActions")?.append(buy);
+  }
+  checking=false;
+ };
 }
 async function openVideo(id, previewVideo=null, adminPreview=false, accessVerified=false){
  const preservedScrollY=window.scrollY;
