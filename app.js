@@ -211,7 +211,7 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
    <div class="lock-animation" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="21" width="30" height="22" rx="5"></rect><path d="M15 21v-7a9 9 0 0 1 18 0v7"></path><circle cx="24" cy="31" r="2.5"></circle><path d="M24 33.5v4"></path></svg></div>
    <p class="eyebrow">EXCLUSIVE MEMBERSHIP</p><h2 id="exclusiveGateHeading">Video khusus member</h2>
    <p id="exclusiveGateMessage">Kamu bisa membuka halaman video ini, tetapi pemutaran hanya tersedia untuk akun dengan membership aktif. Tekan Periksa Akses untuk memverifikasi akun.</p>
-   <div class="exclusive-check-progress" id="exclusiveCheckProgress"><span></span></div>
+   <div class="exclusive-check-progress" id="exclusiveCheckProgress" hidden><span></span></div>
   </div>
   <div class="exclusive-gate-actions" id="exclusiveGateActions">
    <button type="button" class="btn btn-primary" id="exclusiveCheckButton"><span aria-hidden="true">🔒</span> Periksa Akses</button>
