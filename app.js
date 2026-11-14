@@ -286,6 +286,7 @@ async function openVideo(id, previewVideo=null, adminPreview=false, accessVerifi
  const preservedScrollY=window.scrollY;
  const v=previewVideo||state.videos.find(x=>String(x.id)===String(id));if(!v)return;
  if(v.is_exclusive&&!adminPreview&&!accessVerified){await showExclusiveGate(v,preservedScrollY,adminPreview);return}
+ if(v.is_exclusive&&!v.storage_path){modal(`<p class="eyebrow">EXCLUSIVE VIDEO</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="player-error">Sumber video eksklusif belum tersimpan di penyimpanan privat. Video tidak akan diputar melalui tautan publik.</div><button type="button" class="btn btn-ghost" id="exclusiveStorageBack">Kembali</button>`);$("#exclusiveStorageBack").onclick=()=>showExclusiveGate(v,preservedScrollY,adminPreview);return}
  if(!v.video_url&&!v.storage_path){modal(`<p class="eyebrow">VIDEO PREVIEW</p><h2 id="modalTitle">${esc(v.title)}</h2><div class="video-player"><span class="muted">Video belum ditambahkan.</span></div><p>${esc(v.description||"")}</p>`);return}
  modal(`<div class="player-page">
   <div class="player-toolbar">
