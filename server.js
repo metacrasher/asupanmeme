@@ -5,12 +5,13 @@ import path from "node:path";
 
 const app = express();
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.join(rootDir, "public");
 
 app.use(express.json({ limit: "2mb" }));
 
 // Serve the current source assets without allowing an old browser/CDN copy
 // of app.js or styles.css to survive a production update.
-app.use(express.static(rootDir, {
+app.use(express.static(publicDir, {
   etag: false,
   lastModified: false,
   setHeaders(res) {
@@ -22,7 +23,7 @@ app.use(express.static(rootDir, {
 
 app.get("/", (_req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.sendFile(path.join(rootDir, "index.html"));
+  res.sendFile(path.join(publicDir, "index.html"));
 });
 
 // Keep the Telegram webhook endpoint available.
