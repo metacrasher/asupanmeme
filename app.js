@@ -253,6 +253,8 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
    card?.classList.add("is-error");
    if(heading)heading.textContent="Pemeriksaan gagal";
    if(message)message.textContent="Status membership belum dapat diverifikasi. Periksa koneksi lalu coba lagi.";
+   if(progress)progress.hidden=true;
+   card?.classList.remove("is-checking");
    checkButton.disabled=false;
    checkButton.innerHTML='<span aria-hidden="true">🔒</span> Coba Periksa Lagi';
    checkButton.classList.add("is-retry");
