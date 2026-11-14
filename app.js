@@ -49,7 +49,7 @@ const db = configured ? window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABA
 // Use an isolated anonymous client for the published catalog so a logged-in
 // member's JWT/RLS context cannot accidentally hide public video rows.
 const savedIds=(()=>{try{const value=JSON.parse(localStorage.getItem("asm_saved")||"[]");return Array.isArray(value)?value:[]}catch(_){return[]} })();
-const state = {user:null,profile:null,videos:[],filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
+const state = {user:null,profile:null,videos:[],albums:[],albumPage:0,filter:"all",view:"home",saved:new Set(savedIds),page:1,recommendationPage:1,search:""};
 let dashboardBackGuard=false;
 let playerHistoryOpen=false;
 function protectDashboardBack(){dashboardBackGuard=true;history.pushState({asmDashboardGuard:true},"",location.href);}
@@ -560,6 +560,73 @@ async function uploadPanel(){
  };
 }
 async function adminVideosPanel(){if(state.profile?.role!=="admin"){toast("Akses admin ditolak.");return}let adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path,storage_provider,video_url,description,thumbnail_url,duration,views").order("created_at",{ascending:false}).limit(100);if(adminResult.error?.code==="42703")adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path").order("created_at",{ascending:false}).limit(100);const {data,error}=adminResult;if(error){toast(error.message);return}modal(`<p class="eyebrow">VIDEO CONTROL</p><h2 id="modalTitle">Kelola video</h2><p>Terbitkan kiriman komunitas, ubah akses, atau hapus video.</p><div class="admin-list">${(data||[]).map(v=>'<div class="admin-row"><div><b>'+esc(v.title)+'</b><small>'+(v.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(v.published?'Tayang':'Menunggu persetujuan')+'</small><small>'+new Date(v.created_at).toLocaleString("id-ID")+'</small></div><div class="admin-actions">'+(!v.published?'<button data-preview-video="'+esc(v.id)+'">▶ Preview</button><button data-publish="'+esc(v.id)+'">Terbitkan gratis</button>':'')+'<button data-toggle="'+esc(v.id)+'">'+(v.is_exclusive?'Jadikan gratis':'Jadikan eksklusif')+'</button><button data-delete-video="'+esc(v.id)+'">Hapus</button></div></div>').join("")||'<p>Belum ada video.</p>'}</div><button class="btn btn-ghost" id="backAdminMain">Kembali ke dashboard</button>`);$("#backAdminMain").onclick=adminPanel;$$("[data-preview-video]").forEach(b=>b.onclick=()=>{const row=data.find(v=>v.id===b.dataset.previewVideo);if(row)openVideo(row.id,row,true)});$$("[data-publish]").forEach(b=>b.onclick=async()=>{const {error}=await db.from("videos").update({published:true}).eq("id",b.dataset.publish);if(error){toast(error.message);return}toast("Video diterbitkan sebagai Gratis.");adminVideosPanel();loadVideos()});$$("[data-toggle]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.toggle);const {error}=await db.from("videos").update({is_exclusive:!row.is_exclusive,published:true}).eq("id",row.id);if(error){toast(error.message);return}toast("Akses video diperbarui.");adminVideosPanel();loadVideos()});$$("[data-delete-video]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.deleteVideo);if(!confirm("Hapus video ini secara permanen?"))return;if(row.storage_path){if(row.storage_provider==="r2"){const {data:{session}}=await db.auth.getSession();const response=await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({key:row.storage_path})});const result=await response.json();if(!response.ok){toast("Gagal menghapus file R2: "+(result.error||"Kesalahan server"));return}}else{const {error:storageError}=await db.storage.from("media-videos").remove([row.storage_path]);if(storageError){toast("Gagal menghapus file Supabase: "+storageError.message);return}}}const {error}=await db.from("videos").delete().eq("id",row.id);if(error){toast(error.message);return}toast("Video dihapus.");adminVideosPanel();loadVideos()})}
+
+async function loadAlbums(){
+ if(!db){state.albums=[];renderAlbums();return}
+ try{
+  const result=await db.from("albums").select("id,title,description,cover_url,is_exclusive,published,created_at").eq("published",true).order("created_at",{ascending:false});
+  if(result.error)throw result.error;
+  const albums=result.data||[];
+  if(!albums.length){state.albums=[];renderAlbums();return}
+  const items=await db.from("album_videos").select("album_id,video_id,sort_order,videos(id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider)").in("album_id",albums.map(a=>a.id)).order("sort_order");
+  if(items.error)throw items.error;
+  state.albums=albums.map(a=>Object.assign({},a,{videos:(items.data||[]).filter(x=>x.album_id===a.id&&x.videos).map(x=>x.videos)}));
+ }catch(error){state.albums=[];if(error?.code!=="42P01"&&error?.code!=="PGRST205")console.error("Album load:",error)}
+ renderAlbums();
+}
+function renderAlbums(){
+ const root=$("#albumCarousel");if(!root)return;
+ const albums=state.albums||[],size=3,pages=Math.max(1,Math.ceil(albums.length/size));
+ state.albumPage=Math.min(Math.max(0,state.albumPage||0),pages-1);
+ const shown=albums.slice(state.albumPage*size,(state.albumPage+1)*size);
+ root.innerHTML=shown.length?shown.map(a=>'<button class="album-card" type="button" data-open-album="'+esc(a.id)+'"><span class="album-cover">'+(a.cover_url?'<img loading="lazy" src="'+esc(a.cover_url)+'" alt="">':'<span class="album-cover-placeholder">A.</span>')+(a.is_exclusive?'<span class="album-lock">🔒</span>':'')+'<span class="album-video-count">'+(a.videos||[]).length+' VIDEO</span></span><span class="album-card-title">'+esc(a.title)+'</span><span class="album-card-meta">'+(a.is_exclusive?'MEMBERSHIP':'KOLEKSI VIDEO')+'</span></button>').join(""):'<div class="album-empty">Album pilihan akan segera hadir.</div>';
+ const dots=$("#albumDots");if(dots)dots.innerHTML=Array.from({length:pages},(_,i)=>'<button type="button" class="album-dot '+(i===state.albumPage?'active':'')+'" data-album-page="'+i+'" aria-label="Halaman album '+(i+1)+'"></button>').join("");
+ if($("#albumPrev"))$("#albumPrev").disabled=state.albumPage===0;
+ if($("#albumNext"))$("#albumNext").disabled=state.albumPage>=pages-1;
+ if($("#albumPageCount"))$("#albumPageCount").textContent=albums.length?(state.albumPage+1)+" / "+pages+" · "+albums.length+" album":"0 album";
+}
+function openAlbum(id){
+ const album=(state.albums||[]).find(a=>String(a.id)===String(id));if(!album)return;
+ if(album.is_exclusive&&!hasPremium()){membershipPanel();toast("Album ini khusus membership aktif.");return}
+ const videos=album.videos||[];
+ modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join("")+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
+ $("#albumBackHome").onclick=closeModal;
+ $("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
+}
+async function adminAlbumsPanel(){
+ if(state.profile?.role!=="admin"||!db){toast("Akses admin diperlukan.");return}
+ const [ar,vr]=await Promise.all([db.from("albums").select("id,title,description,cover_url,is_exclusive,published").order("created_at",{ascending:false}),db.from("videos").select("id,title,is_exclusive,published").order("created_at",{ascending:false}).limit(200)]);
+ if(ar.error||vr.error){toast("Gagal memuat album/video. Pastikan migration album sudah dijalankan di Supabase.");return}
+ const albums=ar.data||[],videos=vr.data||[];
+ modal('<p class="eyebrow">ALBUM CONTROL</p><h2 id="modalTitle">Kelola album</h2><p>Buat album, atur cover, pilih video, dan tentukan akses membership.</p><form id="albumForm" class="form-stack album-admin-form"><input type="hidden" name="album_id"><div class="field"><label>Judul album</label><input name="title" maxlength="120" required></div><div class="field"><label>Deskripsi singkat</label><textarea name="description" rows="2" maxlength="500"></textarea></div><div class="field"><label>URL cover album</label><input name="cover_url" type="url" placeholder="https://..."></div><label class="album-admin-toggle"><input name="is_exclusive" type="checkbox"> Album eksklusif (membership)</label><label class="album-admin-toggle"><input name="published" type="checkbox" checked> Tampilkan di halaman utama</label><div class="field"><label>Pilih video dalam album</label><div class="album-video-picker">'+videos.map(v=>'<label><input type="checkbox" name="video_ids" value="'+esc(v.id)+'"><span>'+esc(v.title)+(v.is_exclusive?' · 🔒':'')+(!v.published?' · Belum tayang':'')+'</span></label>').join("")+'</div></div><button class="btn btn-primary" type="submit">Simpan album</button><button class="btn btn-ghost" id="albumFormReset" type="button">Album baru / reset</button></form><div class="admin-list album-admin-list">'+albums.map(a=>'<div class="admin-row"><div><b>'+esc(a.title)+'</b><small>'+(a.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(a.published?'Tayang':'Disembunyikan')+'</small></div><div class="admin-actions"><button type="button" data-edit-album="'+esc(a.id)+'">Edit</button><button type="button" data-delete-album="'+esc(a.id)+'">Hapus</button></div></div>').join("")+'</div><button class="btn btn-ghost" id="albumBackAdmin">Kembali ke dashboard</button>');
+ const form=$("#albumForm"),reset=()=>{form.reset();form.elements.album_id.value="";form.elements.published.checked=true;form.querySelector('[type="submit"]').textContent="Simpan album"};
+ $("#albumFormReset").onclick=reset;$("#albumBackAdmin").onclick=adminPanel;
+ form.onsubmit=async e=>{
+  e.preventDefault();const fd=new FormData(form),id=String(fd.get("album_id")||"");
+  const payload={title:String(fd.get("title")||"").trim(),description:String(fd.get("description")||"").trim(),cover_url:String(fd.get("cover_url")||"").trim()||null,is_exclusive:form.elements.is_exclusive.checked,published:form.elements.published.checked,updated_at:new Date().toISOString()};
+  if(!payload.title){toast("Judul album wajib diisi.");return}
+  const save=form.querySelector('[type="submit"]');save.disabled=true;
+  try{
+   const query=id?db.from("albums").update(payload).eq("id",id).select("id").single():db.from("albums").insert(payload).select("id").single();
+   const saved=await query;if(saved.error)throw saved.error;
+   const selected=[...form.querySelectorAll('input[name="video_ids"]:checked')].map(x=>x.value);
+   const linked=await db.rpc("set_album_videos",{p_album_id:saved.data.id,p_video_ids:selected});if(linked.error)throw linked.error;
+   toast("Album berhasil disimpan.");await loadAlbums();adminAlbumsPanel();
+  }catch(error){toast("Gagal menyimpan album: "+(error?.message||"Periksa migration Supabase."));save.disabled=false}
+ };
+ $("[data-edit-album]").forEach(b=>b.onclick=async()=>{
+  const a=albums.find(x=>x.id===b.dataset.editAlbum);if(!a)return;
+  const items=await db.from("album_videos").select("video_id").eq("album_id",a.id);
+  form.elements.album_id.value=a.id;form.elements.title.value=a.title;form.elements.description.value=a.description||"";form.elements.cover_url.value=a.cover_url||"";form.elements.is_exclusive.checked=a.is_exclusive;form.elements.published.checked=a.published;
+  const selected=new Set((items.data||[]).map(x=>x.video_id));form.querySelectorAll('[name="video_ids"]').forEach(x=>x.checked=selected.has(x.value));form.querySelector('[type="submit"]').textContent="Perbarui album";form.scrollIntoView({behavior:"smooth",block:"start"});
+ });
+ $("[data-delete-album]").forEach(b=>b.onclick=async()=>{
+  if(!confirm("Hapus album ini? Video aslinya tidak akan dihapus."))return;
+  const result=await db.from("albums").delete().eq("id",b.dataset.deleteAlbum);if(result.error){toast(result.error.message);return}
+  toast("Album dihapus. Video asli tetap aman.");await loadAlbums();adminAlbumsPanel();
+ });
+}
+
 async function adminPanel(){
  if(state.profile?.role!=="admin"){toast("Akses admin ditolak. Pastikan role akun adalah admin.");return}
  if(!db){toast("Koneksi database belum tersedia.");return}
@@ -570,8 +637,8 @@ async function adminPanel(){
  ]);
  if(error){toast("Gagal memuat pembayaran: "+error.message);return}
  const qrisUrl=setting?.value||"";
- modal(`<p class="eyebrow">ADMIN CONTROL CENTER</p><h2 id="modalTitle">Dashboard admin</h2><p>Kelola konten, QRIS, dan verifikasi pembayaran ASUPANMEME.</p><div class="form-stack admin-tools" style="margin:18px 0 24px"><button class="btn btn-primary" id="manageVideos" type="button">▶ Kelola semua video</button><button class="btn btn-ghost" id="uploadAdminVideo" type="button">＋ Upload video baru</button></div><section class="admin-qris"><p class="eyebrow">PAYMENT SETTINGS</p><h3>QRIS pembayaran</h3>${qrisUrl?'<img class="admin-qris-preview" src="'+esc(qrisUrl)+'" alt="QRIS aktif">':'<p class="muted">Belum ada gambar QRIS yang diunggah.</p>'}<form id="qrisUploadForm" class="form-stack"><div class="field"><label>Unggah gambar QRIS (JPG, PNG, WEBP maks. 5 MB)</label><input name="qris" type="file" accept="image/jpeg,image/png,image/webp" required></div><button class="btn btn-primary" type="submit">Simpan QRIS</button></form><small>QRIS ini akan ditampilkan di halaman membership untuk semua pengguna.</small></section><div class="admin-payment-section" style="border-top:1px solid #37313b;padding-top:18px"><p class="eyebrow">MEMBERSHIP</p><h3 style="font-size:16px;margin:0 0 6px">Verifikasi pembayaran</h3><p>Periksa bukti pembayaran sebelum mengaktifkan membership pengguna.</p><div class="admin-list">${(data||[]).map(x=>'<div class="admin-row"><div><b>'+esc(x.plan_name)+' · '+money(x.amount)+'</b><small>'+esc(x.sender_name)+' · '+esc(x.payment_method)+' · '+esc(x.status)+'</small><small>'+new Date(x.created_at).toLocaleString("id-ID")+'</small><button class="inline-link" data-proof="'+esc(x.id)+'">Lihat bukti</button></div><div class="admin-actions">'+(x.status==="pending"?'<button data-approve="'+esc(x.id)+'">Setujui</button><button data-reject="'+esc(x.id)+'">Tolak</button>':"")+'</div></div>').join("")||'<p>Belum ada pembayaran masuk.</p>'}</div><p class="muted">Persetujuan memanggil database function yang memvalidasi hak admin dan mengaktifkan masa membership.</p></div>`);
- $("#manageVideos").onclick=adminVideosPanel;$("#uploadAdminVideo").onclick=uploadPanel;
+ modal(`<p class="eyebrow">ADMIN CONTROL CENTER</p><h2 id="modalTitle">Dashboard admin</h2><p>Kelola konten, QRIS, dan verifikasi pembayaran ASUPANMEME.</p><div class="form-stack admin-tools" style="margin:18px 0 24px"><button class="btn btn-primary" id="manageVideos" type="button">▶ Kelola semua video</button><button class="btn btn-ghost" id="manageAlbums" type="button">▣ Kelola album</button><button class="btn btn-ghost" id="uploadAdminVideo" type="button">＋ Upload video baru</button></div><section class="admin-qris"><p class="eyebrow">PAYMENT SETTINGS</p><h3>QRIS pembayaran</h3>${qrisUrl?'<img class="admin-qris-preview" src="'+esc(qrisUrl)+'" alt="QRIS aktif">':'<p class="muted">Belum ada gambar QRIS yang diunggah.</p>'}<form id="qrisUploadForm" class="form-stack"><div class="field"><label>Unggah gambar QRIS (JPG, PNG, WEBP maks. 5 MB)</label><input name="qris" type="file" accept="image/jpeg,image/png,image/webp" required></div><button class="btn btn-primary" type="submit">Simpan QRIS</button></form><small>QRIS ini akan ditampilkan di halaman membership untuk semua pengguna.</small></section><div class="admin-payment-section" style="border-top:1px solid #37313b;padding-top:18px"><p class="eyebrow">MEMBERSHIP</p><h3 style="font-size:16px;margin:0 0 6px">Verifikasi pembayaran</h3><p>Periksa bukti pembayaran sebelum mengaktifkan membership pengguna.</p><div class="admin-list">${(data||[]).map(x=>'<div class="admin-row"><div><b>'+esc(x.plan_name)+' · '+money(x.amount)+'</b><small>'+esc(x.sender_name)+' · '+esc(x.payment_method)+' · '+esc(x.status)+'</small><small>'+new Date(x.created_at).toLocaleString("id-ID")+'</small><button class="inline-link" data-proof="'+esc(x.id)+'">Lihat bukti</button></div><div class="admin-actions">'+(x.status==="pending"?'<button data-approve="'+esc(x.id)+'">Setujui</button><button data-reject="'+esc(x.id)+'">Tolak</button>':"")+'</div></div>').join("")||'<p>Belum ada pembayaran masuk.</p>'}</div><p class="muted">Persetujuan memanggil database function yang memvalidasi hak admin dan mengaktifkan masa membership.</p></div>`);
+ $("#manageVideos").onclick=adminVideosPanel;$("#manageAlbums").onclick=adminAlbumsPanel;$("#uploadAdminVideo").onclick=uploadPanel;
  $("#qrisUploadForm").onsubmit=async e=>{
   e.preventDefault();const form=e.currentTarget,file=new FormData(form).get("qris"),button=form.querySelector('button[type="submit"]');
   if(!file||file.size>5*1024*1024||!["image/jpeg","image/png","image/webp"].includes(file.type)){toast("Pilih gambar QRIS JPG, PNG, atau WEBP maksimal 5 MB.");return}
@@ -613,6 +680,9 @@ document.addEventListener("click",event=>{
  const rec=event.target.closest("[data-recommendation-video]");
  if(rec){event.preventDefault();openVideo(rec.dataset.recommendationVideo);return}
 });
+document.addEventListener("click",event=>{const a=event.target.closest("[data-open-album]");if(a){openAlbum(a.dataset.openAlbum);return}const v=event.target.closest("[data-album-video]");if(v){openVideo(v.dataset.albumVideo);return}const p=event.target.closest("[data-album-page]");if(p){state.albumPage=Number(p.dataset.albumPage)||0;renderAlbums()}});
+$("#albumPrev")?.addEventListener("click",()=>{state.albumPage=Math.max(0,state.albumPage-1);renderAlbums()});
+$("#albumNext")?.addEventListener("click",()=>{state.albumPage=Math.min(Math.max(0,Math.ceil((state.albums||[]).length/3)-1),state.albumPage+1);renderAlbums()});
 function closeSidebar(){sidebar.classList.remove("open");sidebarOverlay.classList.remove("visible");document.body.classList.remove("sidebar-open")}
 function toggleSidebar(){
  const opening=!sidebar.classList.contains("open");
@@ -639,6 +709,6 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeS
 // Age-gate clicks are handled by the early delegated listener above.
 try{if(sessionStorage.getItem("asm_age_confirmed")==="yes")$("#ageGate").classList.add("hidden")}catch(_){}
 $("#year").textContent=$("#footerYear").textContent=new Date().getFullYear();
-async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth();await loadVideos()})}refreshAuth();await loadVideos();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
+async function init(){if(db){const {data}=await db.auth.getSession();state.user=data.session?.user||null;if(state.user)await loadProfile();db.auth.onAuthStateChange(async(_event,session)=>{state.user=session?.user||null;if(state.user)await loadProfile();else state.profile=null;refreshAuth();await loadVideos();await loadAlbums()})}refreshAuth();await loadVideos();await loadAlbums();if(!configured)toast("Mode demo: isi config.js dan jalankan supabase/schema.sql untuk mengaktifkan akun & pembayaran.")}init();
 })();
 /* ASUPANMEME production asset refresh: 2026-11-12 — source aligned with latest GitHub features. */
