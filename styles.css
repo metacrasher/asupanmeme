@@ -403,7 +403,7 @@ html,body{max-width:100%;overflow-x:hidden}
   min-width:0!important;
 }
 #modalBackdrop.player-mode #mainModal.player-modal .video-frame{
-  width:min(100%,900px)!important;
+  /* Let fitVideoFrame() set the intrinsic video width inline. */
   max-width:900px!important;
   min-width:0!important;
   max-height:56dvh!important;
@@ -613,3 +613,13 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
  .section-heading{align-items:flex-start;gap:8px}
  .section-heading h2{max-width:100%;overflow-wrap:anywhere}
 }
+
+
+/* Exclusive gate: keep the lock still until the user starts the one-second check. */
+.exclusive-gate-card:not(.is-checking) .lock-animation{animation:none}
+.exclusive-gate-card:not(.is-checking) .lock-animation:before{animation:none;opacity:0}
+.exclusive-gate-card:not(.is-checking) .lock-animation svg{animation:none}
+.exclusive-gate-card.is-checking .lock-animation{animation:exclusiveLockPulse 1s ease-in-out infinite}
+.exclusive-gate-card.is-checking .lock-animation:before{animation:exclusiveLockRing 1.4s ease-out infinite}
+.exclusive-gate-card.is-checking .lock-animation svg{animation:exclusiveLockJiggle .8s ease-in-out infinite}
+.exclusive-gate-card .exclusive-check-progress[hidden]{display:none}
