@@ -218,9 +218,9 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
    ${!state.user?'<button type="button" class="exclusive-login-link" id="exclusiveLogin">Sudah langganan? Masuk</button><button type="button" class="exclusive-login-link" id="exclusiveSignup">Belum punya akun? Daftar</button>':''}
   </div>
   <h2 class="exclusive-gate-title">${esc(v.title)}</h2>
+  ${exclusiveChannelMarkup()}
   ${v.description?'<p class="player-description">'+esc(v.description)+'</p>':''}
   <p class="player-hint">Video terkunci sampai membership aktif berhasil diverifikasi.</p>
-  ${exclusiveChannelMarkup()}
  </div>`);
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
