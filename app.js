@@ -245,7 +245,8 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
  const shell=$(".exclusive-gate-shell");
  if(!shell||shell.dataset.exclusiveVideo!==String(v.id)||$("#modalBackdrop").classList.contains("hidden"))return;
  if(hasPremium()){
-  closeModal();
+  // Replace the gate in-place so the browser history stays on the player,
+  // rather than navigating back and accidentally closing the newly opened player.
   openVideo(v.id,v,adminPreview,true);
   return;
  }
