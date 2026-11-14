@@ -594,7 +594,7 @@ function openAlbum(id){
  const videos=album.videos||[];
  modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join("")+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
  $("#albumBackHome").onclick=closeModal;
- $("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
+ document.querySelectorAll("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
 }
 async function adminAlbumsPanel(){
  if(state.profile?.role!=="admin"||!db){toast("Akses admin diperlukan.");return}
@@ -649,7 +649,7 @@ async function adminAlbumsPanel(){
    save.disabled=false;save.textContent=id?"Perbarui album":"Simpan album";
   }
  };
- $("[data-edit-album]").forEach(b=>b.onclick=async()=>{
+ document.querySelectorAll("[data-edit-album]").forEach(b=>b.onclick=async()=>{
   const a=albums.find(x=>x.id===b.dataset.editAlbum);if(!a)return;
   const items=await db.from("album_videos").select("video_id").eq("album_id",a.id);
   if(items.error){toast("Gagal membaca video dalam album: "+items.error.message);return}
@@ -660,7 +660,7 @@ async function adminAlbumsPanel(){
   form.querySelector('[type="submit"]').textContent="Perbarui album";
   updatePicker();form.scrollIntoView({behavior:"smooth",block:"start"});
  });
- $("[data-delete-album]").forEach(b=>b.onclick=async()=>{
+ document.querySelectorAll("[data-delete-album]").forEach(b=>b.onclick=async()=>{
   if(!confirm("Hapus album ini? Video aslinya tidak akan dihapus."))return;
   const result=await db.from("albums").delete().eq("id",b.dataset.deleteAlbum);
   if(result.error){toast(result.error.message);return}
