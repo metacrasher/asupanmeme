@@ -570,7 +570,10 @@ async function loadAlbums(){
   if(!albums.length){state.albums=[];renderAlbums();return}
   const items=await db.from("album_videos").select("album_id,video_id,sort_order,videos(id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider)").in("album_id",albums.map(a=>a.id)).order("sort_order");
   if(items.error)throw items.error;
-  state.albums=albums.map(a=>Object.assign({},a,{videos:(items.data||[]).filter(x=>x.album_id===a.id&&x.videos).map(x=>x.videos)}));
+  const loaded=albums.map(a=>Object.assign({},a,{videos:(items.data||[]).filter(x=>x.album_id===a.id&&x.videos).map(x=>x.videos)}));
+  // Keep empty exclusive albums visible as locked previews for visitors.
+  // Empty regular albums are omitted until an admin adds at least one video.
+  state.albums=loaded.filter(a=>a.is_exclusive||(a.videos||[]).length>0);
  }catch(error){state.albums=[];if(error?.code!=="42P01"&&error?.code!=="PGRST205")console.error("Album load:",error)}
  renderAlbums();
 }
@@ -579,7 +582,7 @@ function renderAlbums(){
  const albums=state.albums||[],size=3;
  state.albumPage=Math.min(Math.max(0,state.albumPage||0),Math.max(0,albums.length-1));
  const shown=albums.length?Array.from({length:Math.min(size,albums.length)},(_,i)=>albums[(state.albumPage+i)%albums.length]):[];
- root.innerHTML=shown.length?shown.map(a=>'<button class="album-card" type="button" data-open-album="'+esc(a.id)+'"><span class="album-cover">'+(a.cover_url?'<img loading="lazy" src="'+esc(a.cover_url)+'" alt="">':'<span class="album-cover-placeholder">A.</span>')+(a.is_exclusive?'<span class="album-lock" aria-label="'+(hasPremium()?'Membership aktif, album terbuka':'Khusus membership, album terkunci')+'">'+(hasPremium()?'🔓':'🔒')+'</span>':'')+'<span class="album-video-count">'+(a.videos||[]).length+' VIDEO</span></span><span class="album-card-title">'+esc(a.title)+'</span><span class="album-card-meta">'+(a.is_exclusive?'MEMBERSHIP':'KOLEKSI VIDEO')+'</span></button>').join(""):'<div class="album-empty">Album pilihan akan segera hadir.</div>';
+ root.innerHTML=shown.length?shown.map(a=>'<button class="album-card" type="button" data-open-album="'+esc(a.id)+'"><span class="album-cover">'+(a.cover_url?'<img loading="lazy" src="'+esc(a.cover_url)+'" alt="">':'<span class="album-cover-placeholder">A.</span>')+(a.is_exclusive?'<span class="album-lock" aria-label="'+(hasPremium()?'Membership aktif, album terbuka':'Khusus membership, album terkunci')+'">'+(hasPremium()?'🔓':'🔒')+'</span>':'')+'<span class="album-video-count">'+(a.videos||[]).length+' VIDEO</span></span><span class="album-card-title">'+esc(a.title)+'</span><span class="album-card-meta">'+(a.is_exclusive?'MEMBERSHIP':'KOLEKSI VIDEO')+'</span></button>').join(""):'<div class="album-empty">Belum ada album yang ditambahkan.</div>';
  const dots=$("#albumDots");if(dots)dots.innerHTML=Array.from({length:albums.length},(_,i)=>'<button type="button" class="album-dot '+(i===state.albumPage?'active':'')+'" data-album-page="'+i+'" aria-label="Halaman album '+(i+1)+'"></button>').join("");
  if($("#albumPrev"))$("#albumPrev").disabled=albums.length<2;
  if($("#albumNext"))$("#albumNext").disabled=albums.length<2;
@@ -595,39 +598,75 @@ function openAlbum(id){
 }
 async function adminAlbumsPanel(){
  if(state.profile?.role!=="admin"||!db){toast("Akses admin diperlukan.");return}
- const [ar,vr]=await Promise.all([db.from("albums").select("id,title,description,cover_url,is_exclusive,published").order("created_at",{ascending:false}),db.from("videos").select("id,title,is_exclusive,published").order("created_at",{ascending:false}).limit(200)]);
- if(ar.error||vr.error){toast("Gagal memuat album/video. Pastikan migration album sudah dijalankan di Supabase.");return}
+ const [ar,vr]=await Promise.all([
+  db.from("albums").select("id,title,description,cover_url,is_exclusive,published,created_at").order("created_at",{ascending:false}),
+  db.from("videos").select("id,title,is_exclusive,published,created_at").order("created_at",{ascending:false}).range(0,999)
+ ]);
+ if(ar.error||vr.error){toast("Gagal memuat album/video: "+(ar.error?.message||vr.error?.message||"Periksa koneksi database."));return}
  const albums=ar.data||[],videos=vr.data||[];
- modal('<p class="eyebrow">ALBUM CONTROL</p><h2 id="modalTitle">Kelola album</h2><p>Buat album, atur cover, pilih video, dan tentukan akses membership.</p><form id="albumForm" class="form-stack album-admin-form"><input type="hidden" name="album_id"><div class="field"><label>Judul album</label><input name="title" maxlength="120" required></div><div class="field"><label>Deskripsi singkat</label><textarea name="description" rows="2" maxlength="500"></textarea></div><div class="field"><label>URL cover album</label><input name="cover_url" type="url" placeholder="https://..."></div><label class="album-admin-toggle"><input name="is_exclusive" type="checkbox"> Album eksklusif (membership)</label><label class="album-admin-toggle"><input name="published" type="checkbox" checked> Tampilkan album di halaman utama</label><div class="field"><label>Pilih video yang sudah diunggah (minimal 1)</label><p class="muted">Video yang dipilih tetap tampil di katalog utama dan juga masuk ke album. File video tidak diunggah atau disimpan dua kali.</p><div class="album-video-picker">'+videos.map(v=>'<label><input type="checkbox" name="video_ids" value="'+esc(v.id)+'"><span>'+esc(v.title)+(v.is_exclusive?' · 🔒':'')+(!v.published?' · Belum tayang':'')+'</span></label>').join("")+'</div></div><button class="btn btn-primary" type="submit">Simpan album</button><button class="btn btn-ghost" id="albumFormReset" type="button">Album baru / reset</button></form><div class="admin-list album-admin-list">'+albums.map(a=>'<div class="admin-row"><div><b>'+esc(a.title)+'</b><small>'+(a.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(a.published?'Tayang':'Disembunyikan')+'</small></div><div class="admin-actions"><button type="button" data-edit-album="'+esc(a.id)+'">Edit</button><button type="button" data-delete-album="'+esc(a.id)+'">Hapus</button></div></div>').join("")+'</div><button class="btn btn-ghost" id="albumBackAdmin">Kembali ke dashboard</button>');
- const form=$("#albumForm"),reset=()=>{form.reset();form.elements.album_id.value="";form.elements.published.checked=true;form.querySelector('[type="submit"]').textContent="Simpan album"};
+ modal('<p class="eyebrow">ALBUM CONTROL</p><h2 id="modalTitle">Kelola album</h2><p>Buat album, atur cover, pilih video yang sudah ada, dan tentukan akses membership.</p><form id="albumForm" class="form-stack album-admin-form"><input type="hidden" name="album_id"><div class="field"><label>Judul album</label><input name="title" maxlength="120" required></div><div class="field"><label>Deskripsi singkat</label><textarea name="description" rows="2" maxlength="500"></textarea></div><div class="field"><label>URL cover album</label><input name="cover_url" type="url" placeholder="https://..."></div><label class="album-admin-toggle"><input name="is_exclusive" type="checkbox"> Album eksklusif (membership)</label><label class="album-admin-toggle"><input name="published" type="checkbox" checked> Tampilkan album di halaman utama</label><div class="field"><label>Tambahkan video yang sudah ada ke album</label><p class="muted">Centang satu atau beberapa video dari katalog. Video asli tetap tampil di halaman utama dan tidak diunggah ulang atau digandakan.</p><input id="albumVideoSearch" type="search" placeholder="Cari judul video..." autocomplete="off"><p class="muted" id="albumVideoSelectedCount">0 video dipilih</p><div class="album-video-picker" id="albumVideoPicker">'+(videos.length?videos.map(v=>'<label data-album-video-option><input type="checkbox" name="video_ids" value="'+esc(v.id)+'"><span>'+esc(v.title)+(v.is_exclusive?' · 🔒':'')+(!v.published?' · Belum tayang':'')+'</span></label>').join(""):'<p class="muted">Belum ada video yang bisa ditambahkan. Unggah video terlebih dahulu.</p>')+'</div></div><button class="btn btn-primary" type="submit">Simpan album</button><button class="btn btn-ghost" id="albumFormReset" type="button">Album baru / reset</button></form><div class="admin-list album-admin-list">'+(albums.length?albums.map(a=>'<div class="admin-row"><div><b>'+esc(a.title)+'</b><small>'+(a.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(a.published?'Tayang':'Disembunyikan')+'</small></div><div class="admin-actions"><button type="button" data-edit-album="'+esc(a.id)+'">Edit</button><button type="button" data-delete-album="'+esc(a.id)+'">Hapus</button></div></div>').join(""):'<p class="muted">Belum ada album yang dibuat.</p>')+'</div><button class="btn btn-ghost" id="albumBackAdmin">Kembali ke dashboard</button>');
+ const form=$("#albumForm"),picker=$("#albumVideoPicker"),search=$("#albumVideoSearch"),count=$("#albumVideoSelectedCount");
+ const updatePicker=()=>{
+  const checks=[...form.querySelectorAll('input[name="video_ids"]')];
+  const selected=checks.filter(x=>x.checked).length;
+  if(count)count.textContent=selected+" video dipilih";
+  if(picker)picker.querySelectorAll("[data-album-video-option]").forEach(label=>{
+   label.hidden=Boolean(search?.value.trim())&&!label.textContent.toLowerCase().includes(search.value.trim().toLowerCase());
+  });
+ };
+ const reset=()=>{
+  form.reset();form.elements.album_id.value="";form.elements.published.checked=true;
+  if(search)search.value="";
+  form.querySelector('[type="submit"]').textContent="Simpan album";
+  updatePicker();
+ };
  $("#albumFormReset").onclick=reset;$("#albumBackAdmin").onclick=adminPanel;
+ if(search)search.oninput=updatePicker;
+ form.querySelectorAll('input[name="video_ids"]').forEach(input=>input.addEventListener("change",updatePicker));
+ updatePicker();
  form.onsubmit=async e=>{
-  e.preventDefault();const fd=new FormData(form),id=String(fd.get("album_id")||"");
+  e.preventDefault();
+  const fd=new FormData(form),id=String(fd.get("album_id")||"");
   const payload={title:String(fd.get("title")||"").trim(),description:String(fd.get("description")||"").trim(),cover_url:String(fd.get("cover_url")||"").trim()||null,is_exclusive:form.elements.is_exclusive.checked,published:form.elements.published.checked,updated_at:new Date().toISOString()};
   if(!payload.title){toast("Judul album wajib diisi.");return}
   const selected=[...form.querySelectorAll('input[name="video_ids"]:checked')].map(x=>x.value);
-  if(selected.length<1){toast("Pilih minimal satu video yang sudah diunggah untuk album ini.");return}
-  const save=form.querySelector('[type="submit"]');save.disabled=true;
+  if(!selected.length){toast("Pilih minimal satu video yang sudah ada untuk dimasukkan ke album.");return}
+  const save=form.querySelector('[type="submit"]');save.disabled=true;save.textContent="Menyimpan album...";
+  let newlyCreatedId=null;
   try{
    const query=id?db.from("albums").update(payload).eq("id",id).select("id").single():db.from("albums").insert(payload).select("id").single();
    const saved=await query;if(saved.error)throw saved.error;
-   const linked=await db.rpc("set_album_videos",{p_album_id:saved.data.id,p_video_ids:selected});if(linked.error)throw linked.error;
-   toast("Album berhasil disimpan.");await loadAlbums();adminAlbumsPanel();
-  }catch(error){toast("Gagal menyimpan album: "+(error?.message||"Periksa migration Supabase."));save.disabled=false}
+   if(!id)newlyCreatedId=saved.data.id;
+   const linked=await db.rpc("set_album_videos",{p_album_id:saved.data.id,p_video_ids:selected});
+   if(linked.error){
+    if(newlyCreatedId)await db.from("albums").delete().eq("id",newlyCreatedId);
+    throw linked.error;
+   }
+   toast("Album berhasil disimpan dengan "+selected.length+" video.");
+   await loadAlbums();await adminAlbumsPanel();
+  }catch(error){
+   toast("Gagal menyimpan album: "+(error?.message||"Periksa migration album di Supabase."));
+   save.disabled=false;save.textContent=id?"Perbarui album":"Simpan album";
+  }
  };
- $("[data-edit-album]").forEach(b=>b.onclick=async()=>{
+ $$("#albumForm [data-edit-album]").forEach(b=>b.onclick=async()=>{
   const a=albums.find(x=>x.id===b.dataset.editAlbum);if(!a)return;
   const items=await db.from("album_videos").select("video_id").eq("album_id",a.id);
+  if(items.error){toast("Gagal membaca video dalam album: "+items.error.message);return}
   form.elements.album_id.value=a.id;form.elements.title.value=a.title;form.elements.description.value=a.description||"";form.elements.cover_url.value=a.cover_url||"";form.elements.is_exclusive.checked=a.is_exclusive;form.elements.published.checked=a.published;
-  const selected=new Set((items.data||[]).map(x=>x.video_id));form.querySelectorAll('[name="video_ids"]').forEach(x=>x.checked=selected.has(x.value));form.querySelector('[type="submit"]').textContent="Perbarui album";form.scrollIntoView({behavior:"smooth",block:"start"});
+  const selected=new Set((items.data||[]).map(x=>x.video_id));
+  form.querySelectorAll('input[name="video_ids"]').forEach(x=>x.checked=selected.has(x.value));
+  if(search)search.value="";
+  form.querySelector('[type="submit"]').textContent="Perbarui album";
+  updatePicker();form.scrollIntoView({behavior:"smooth",block:"start"});
  });
- $("[data-delete-album]").forEach(b=>b.onclick=async()=>{
+ $$("#albumForm [data-delete-album]").forEach(b=>b.onclick=async()=>{
   if(!confirm("Hapus album ini? Video aslinya tidak akan dihapus."))return;
-  const result=await db.from("albums").delete().eq("id",b.dataset.deleteAlbum);if(result.error){toast(result.error.message);return}
+  const result=await db.from("albums").delete().eq("id",b.dataset.deleteAlbum);
+  if(result.error){toast(result.error.message);return}
   toast("Album dihapus. Video asli tetap aman.");await loadAlbums();adminAlbumsPanel();
  });
 }
-
 async function adminPanel(){
  if(state.profile?.role!=="admin"){toast("Akses admin ditolak. Pastikan role akun adalah admin.");return}
  if(!db){toast("Koneksi database belum tersedia.");return}
