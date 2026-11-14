@@ -623,3 +623,195 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
 .exclusive-gate-card.is-checking .lock-animation:before{animation:exclusiveLockRing 1.4s ease-out infinite}
 .exclusive-gate-card.is-checking .lock-animation svg{animation:exclusiveLockJiggle .8s ease-in-out infinite}
 .exclusive-gate-card .exclusive-check-progress[hidden]{display:none}
+
+
+/* Player layout repair: reliable vertical scrolling and clickable recommendations. */
+#modalBackdrop.player-mode{
+  position:fixed!important;
+  inset:0!important;
+  display:block!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-width:100vw!important;
+  padding:0!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  touch-action:pan-y;
+  align-items:initial!important;
+  justify-items:initial!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:100dvh!important;
+  max-height:none!important;
+  margin:0 auto!important;
+  padding:0!important;
+  overflow:visible!important;
+  pointer-events:auto!important;
+  touch-action:pan-y;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-page{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  width:min(100%,980px)!important;
+  max-width:980px!important;
+  min-width:0!important;
+  min-height:100dvh!important;
+  height:auto!important;
+  margin:0 auto!important;
+  padding:16px clamp(14px,2.5vw,24px) 64px!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+  touch-action:pan-y;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-caption-block{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  width:100%!important;
+  max-width:900px!important;
+  margin:14px auto 0!important;
+  text-align:center!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-caption-block .player-title{
+  width:100%;
+  margin:0 0 10px!important;
+  text-align:center!important;
+  overflow-wrap:anywhere;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-caption-block .exclusive-channel-link{
+  display:inline-flex!important;
+  align-self:center!important;
+  justify-content:center!important;
+  align-items:center!important;
+  width:max-content;
+  max-width:100%;
+  min-height:44px;
+  margin:0 auto 12px!important;
+  pointer-events:auto!important;
+  position:relative;
+  z-index:3;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-caption-block [data-view-count]{
+  margin:0 0 6px!important;
+  text-align:center!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-caption-block .player-description{
+  width:100%;
+  max-width:760px;
+  margin:4px auto 0!important;
+  text-align:center!important;
+  overflow-wrap:anywhere;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-recommendations{
+  display:block!important;
+  position:relative!important;
+  flex:0 0 auto!important;
+  width:min(100%,900px)!important;
+  max-width:900px!important;
+  min-width:0!important;
+  margin:28px auto 0!important;
+  padding:16px 0 28px!important;
+  overflow:visible!important;
+  pointer-events:auto!important;
+  z-index:2;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:auto!important;
+  gap:14px!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:visible!important;
+  pointer-events:auto!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-card{
+  display:flex!important;
+  position:relative!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  z-index:3!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-card *{
+  pointer-events:none;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-thumb{
+  display:block!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  aspect-ratio:16/9!important;
+  overflow:hidden;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy{
+  display:grid!important;
+  flex:1 1 auto!important;
+  min-width:0!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-pagination{
+  display:flex!important;
+  justify-content:center!important;
+  width:100%!important;
+  min-height:44px;
+  margin:14px auto 0!important;
+  padding:8px 0 0!important;
+  overflow:visible!important;
+  pointer-events:auto!important;
+  position:relative!important;
+  z-index:4!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .recommendation-pagination button{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+#modalBackdrop.player-mode #mainModal.player-modal .player-hint{
+  text-align:center;
+  max-width:900px;
+  margin:12px auto 0!important;
+}
+@media(max-width:700px){
+  #modalBackdrop.player-mode #mainModal.player-modal .player-page{
+    width:100%!important;
+    max-width:100%!important;
+    padding:12px 14px 48px!important;
+  }
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-card{
+    min-height:0!important;
+  }
+}
+@media(max-width:420px){
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;
+  }
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy{
+    padding:7px 7px 9px!important;
+  }
+  #modalBackdrop.player-mode #mainModal.player-modal .recommendation-copy b{
+    font-size:11px!important;
+  }
+}
