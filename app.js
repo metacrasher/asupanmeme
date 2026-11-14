@@ -218,9 +218,9 @@ async function showExclusiveGate(v, preservedScrollY, adminPreview=false){
    ${!state.user?'<button type="button" class="exclusive-login-link" id="exclusiveLogin">Sudah langganan? Masuk</button><button type="button" class="exclusive-login-link" id="exclusiveSignup">Belum punya akun? Daftar</button>':''}
   </div>
   <h2 class="exclusive-gate-title">${esc(v.title)}</h2>
+  ${exclusiveChannelMarkup()}
   ${v.description?'<p class="player-description">'+esc(v.description)+'</p>':''}
   <p class="player-hint">Video terkunci sampai membership aktif berhasil diverifikasi.</p>
-  ${exclusiveChannelMarkup()}
  </div>`);
  $("#mainModal").classList.add("player-modal");
  $("#modalBackdrop").classList.add("player-mode");
@@ -301,10 +301,12 @@ async function openVideo(id, previewVideo=null, adminPreview=false, accessVerifi
    </div>
   </div>
   <div class="video-player" id="videoPlayer"><div class="video-frame" id="videoFrame"><span class="muted">Menyiapkan video...</span></div><div class="video-controls"><button type="button" class="video-play-button" id="videoPlayPause" aria-pressed="false">▶ Putar video</button><span class="video-status" id="videoStatus">Siap diputar</span></div></div>
-  <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
-  <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
-  <p class="player-description">${esc(v.description||"")}</p>
-  ${v.is_exclusive?exclusiveChannelMarkup():""}
+  <div class="player-caption-block">
+   <h2 class="player-title" id="modalTitle">${esc(v.title)}</h2>
+   ${exclusiveChannelMarkup()}
+   <p data-view-count>${Number(v.views||0).toLocaleString("id-ID")} views</p>
+   ${v.description?'<p class="player-description">'+esc(v.description)+'</p>':""}
+  </div>
   <p class="player-hint">Gunakan kontrol di bagian bawah video untuk pause, lanjutkan, atur volume, dan posisi tontonan.</p>
   <section class="player-recommendations" id="playerRecommendations" aria-label="Video lainnya">
    <div class="player-recommendation-heading"><h3>Video lainnya</h3><span id="recommendationCount"></span></div>
@@ -418,8 +420,29 @@ function renderRecommendations(currentId){
   (x.thumbnail_url?'<img loading="lazy" src="'+esc(x.thumbnail_url)+'" alt="">':'<span>A.</span>')+
   '</span><span class="recommendation-copy"><b>'+esc(x.title)+'</b><small>'+Number(x.views||0).toLocaleString("id-ID")+' views</small></span></button>'
  ).join("")||'<p class="muted recommendation-empty">Belum ada video lainnya.</p>';
+ // Bind card actions directly after rendering so clicks do not depend on
+ // document-level delegation or bubbling through the scrollable modal.
+ grid.querySelectorAll("[data-recommendation-video]").forEach(button=>{
+  button.addEventListener("click",event=>{
+   event.preventDefault();
+   event.stopPropagation();
+   openVideo(button.dataset.recommendationVideo);
+  });
+ });
  const count=$("#recommendationCount");if(count)count.textContent=items.length+" video";
- const pager=$("#recommendationPagination");if(pager)pager.innerHTML=paginationMarkup(items.length,state.recommendationPage,size,"rec-page");
+ const pager=$("#recommendationPagination");
+ if(pager){
+  pager.innerHTML=paginationMarkup(items.length,state.recommendationPage,size,"rec-page");
+  pager.querySelectorAll("[data-rec-page]").forEach(button=>{
+   button.addEventListener("click",event=>{
+    event.preventDefault();
+    event.stopPropagation();
+    if(button.disabled)return;
+    state.recommendationPage=Number(button.dataset.recPage)||1;
+    renderRecommendations(currentId);
+   });
+  });
+ }
 }
 
 async function membershipPanel(){
