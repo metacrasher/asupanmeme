@@ -629,8 +629,13 @@ function renderAlbums(){
 function openAlbum(id){
  const album=(state.albums||[]).find(a=>String(a.id)===String(id));if(!album)return;
  if(album.is_exclusive&&!hasPremium()){membershipPanel();toast("Album ini khusus membership aktif.");return}
- const videos=album.videos||[];
- modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join("")+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
+ const videos=album.videos||[],hasAccess=hasPremium();
+ modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>{
+  const locked=Boolean(v.is_exclusive)&&!hasAccess;
+  const accessIcon=v.is_exclusive?(locked?'🔒':'🔓'):'▶';
+  const accessLabel=v.is_exclusive?(locked?'Video terkunci, membership diperlukan':'Video eksklusif, akses membership aktif'):'Putar video';
+  return '<button type="button" class="album-video-row'+(locked?' is-locked':'')+'" data-album-video="'+esc(v.id)+'" aria-label="'+esc(v.title)+'. '+accessLabel+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span class="album-video-access" title="'+accessLabel+'" aria-label="'+accessLabel+'">'+accessIcon+'</span></button>';
+ }).join('')+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
  $("#albumBackHome").onclick=closeModal;
  document.querySelectorAll("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
 }
