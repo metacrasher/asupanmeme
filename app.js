@@ -559,7 +559,45 @@ async function uploadPanel(){
   }
  };
 }
-async function adminVideosPanel(){if(state.profile?.role!=="admin"){toast("Akses admin ditolak.");return}let adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path,storage_provider,video_url,description,thumbnail_url,duration,views").order("created_at",{ascending:false}).limit(100);if(adminResult.error?.code==="42703")adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path").order("created_at",{ascending:false}).limit(100);const {data,error}=adminResult;if(error){toast(error.message);return}modal(`<p class="eyebrow">VIDEO CONTROL</p><h2 id="modalTitle">Kelola video</h2><p>Terbitkan kiriman komunitas, ubah akses, atau hapus video.</p><div class="admin-list">${(data||[]).map(v=>'<div class="admin-row"><div><b>'+esc(v.title)+'</b><small>'+(v.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(v.published?'Tayang':'Menunggu persetujuan')+'</small><small>'+new Date(v.created_at).toLocaleString("id-ID")+'</small></div><div class="admin-actions">'+(!v.published?'<button data-preview-video="'+esc(v.id)+'">▶ Preview</button><button data-publish="'+esc(v.id)+'">Terbitkan gratis</button>':'')+'<button data-toggle="'+esc(v.id)+'">'+(v.is_exclusive?'Jadikan gratis':'Jadikan eksklusif')+'</button><button data-delete-video="'+esc(v.id)+'">Hapus</button></div></div>').join("")||'<p>Belum ada video.</p>'}</div><button class="btn btn-ghost" id="backAdminMain">Kembali ke dashboard</button>`);$("#backAdminMain").onclick=adminPanel;$$("[data-preview-video]").forEach(b=>b.onclick=()=>{const row=data.find(v=>v.id===b.dataset.previewVideo);if(row)openVideo(row.id,row,true)});$$("[data-publish]").forEach(b=>b.onclick=async()=>{const {error}=await db.from("videos").update({published:true}).eq("id",b.dataset.publish);if(error){toast(error.message);return}toast("Video diterbitkan sebagai Gratis.");adminVideosPanel();loadVideos()});$$("[data-toggle]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.toggle);const {error}=await db.from("videos").update({is_exclusive:!row.is_exclusive,published:true}).eq("id",row.id);if(error){toast(error.message);return}toast("Akses video diperbarui.");adminVideosPanel();loadVideos()});$$("[data-delete-video]").forEach(b=>b.onclick=async()=>{const row=data.find(v=>v.id===b.dataset.deleteVideo);if(!confirm("Hapus video ini secara permanen?"))return;if(row.storage_path){if(row.storage_provider==="r2"){const {data:{session}}=await db.auth.getSession();const response=await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({key:row.storage_path})});const result=await response.json();if(!response.ok){toast("Gagal menghapus file R2: "+(result.error||"Kesalahan server"));return}}else{const {error:storageError}=await db.storage.from("media-videos").remove([row.storage_path]);if(storageError){toast("Gagal menghapus file Supabase: "+storageError.message);return}}}const {error}=await db.from("videos").delete().eq("id",row.id);if(error){toast(error.message);return}toast("Video dihapus.");adminVideosPanel();loadVideos()})}
+async function adminVideosPanel(){
+ if(state.profile?.role!=="admin"){toast("Akses admin ditolak.");return}
+ let adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path,storage_provider,video_url,description,thumbnail_url,duration,views").order("created_at",{ascending:false}).limit(100);
+ if(adminResult.error?.code==="42703")adminResult=await db.from("videos").select("id,title,is_exclusive,published,created_at,uploader_id,storage_path").order("created_at",{ascending:false}).limit(100);
+ const {data,error}=adminResult;
+ if(error){toast(error.message);return}
+ const videos=data||[];
+ modal(`<p class="eyebrow">VIDEO CONTROL</p><h2 id="modalTitle">Kelola semua video</h2><p>Cari video berdasarkan judul, lalu terbitkan kiriman komunitas, ubah akses, atau hapus video.</p><div class="field admin-video-search-field"><label for="adminVideoSearch">Cari video</label><input id="adminVideoSearch" type="search" placeholder="Ketik judul video..." autocomplete="off" aria-label="Cari video berdasarkan judul"></div><p class="muted" id="adminVideoSearchCount"></p><div class="admin-list" id="adminVideoList"></div><button class="btn btn-ghost" id="backAdminMain">Kembali ke dashboard</button>`);
+ $("#backAdminMain").onclick=adminPanel;
+ const list=$("#adminVideoList"),search=$("#adminVideoSearch"),count=$("#adminVideoSearchCount");
+ const renderRows=(query="")=>{
+  const normalized=String(query||"").trim().toLocaleLowerCase("id-ID");
+  const filtered=videos.filter(v=>String(v.title||"").toLocaleLowerCase("id-ID").includes(normalized));
+  count.textContent=normalized?`Menampilkan ${filtered.length} dari ${videos.length} video`:`${videos.length} video`;
+  list.innerHTML=filtered.length?filtered.map(v=>'<div class="admin-row"><div><b>'+esc(v.title||"Tanpa judul")+'</b><small>'+(v.is_exclusive?'EKSKLUSIF':'GRATIS')+' · '+(v.published?'Tayang':'Menunggu persetujuan')+'</small><small>'+new Date(v.created_at).toLocaleString("id-ID")+'</small></div><div class="admin-actions">'+(!v.published?'<button data-preview-video="'+esc(v.id)+'">▶ Preview</button><button data-publish="'+esc(v.id)+'">Terbitkan gratis</button>':'')+'<button data-toggle="'+esc(v.id)+'">'+(v.is_exclusive?'Jadikan gratis':'Jadikan eksklusif')+'</button><button data-delete-video="'+esc(v.id)+'">Hapus</button></div></div>').join(""):'<p class="muted">'+(normalized?'Video dengan judul tersebut tidak ditemukan.':'Belum ada video.')+'</p>';
+  $$("[data-preview-video]",list).forEach(b=>b.onclick=()=>{const row=videos.find(v=>v.id===b.dataset.previewVideo);if(row)openVideo(row.id,row,true)});
+  $$("[data-publish]",list).forEach(b=>b.onclick=async()=>{const {error}=await db.from("videos").update({published:true}).eq("id",b.dataset.publish);if(error){toast(error.message);return}toast("Video diterbitkan sebagai Gratis.");adminVideosPanel();loadVideos()});
+  $$("[data-toggle]",list).forEach(b=>b.onclick=async()=>{const row=videos.find(v=>v.id===b.dataset.toggle);if(!row)return;const {error}=await db.from("videos").update({is_exclusive:!row.is_exclusive,published:true}).eq("id",row.id);if(error){toast(error.message);return}toast("Akses video diperbarui.");adminVideosPanel();loadVideos()});
+  $$("[data-delete-video]",list).forEach(b=>b.onclick=async()=>{
+   const row=videos.find(v=>v.id===b.dataset.deleteVideo);if(!row)return;
+   if(!confirm("Hapus video ini secara permanen?"))return;
+   if(row.storage_path){
+    if(row.storage_provider==="r2"){
+     const {data:{session}}=await db.auth.getSession();
+     const response=await fetch("/api/r2-delete",{method:"POST",headers:{"content-type":"application/json",...(session?.access_token?{Authorization:"Bearer "+session.access_token}:{})},body:JSON.stringify({key:row.storage_path})});
+     const result=await response.json();if(!response.ok){toast("Gagal menghapus file R2: "+(result.error||"Kesalahan server"));return}
+    }else{
+     const {error:storageError}=await db.storage.from("media-videos").remove([row.storage_path]);
+     if(storageError){toast("Gagal menghapus file Supabase: "+storageError.message);return}
+    }
+   }
+   const {error}=await db.from("videos").delete().eq("id",row.id);
+   if(error){toast(error.message);return}
+   toast("Video dihapus.");adminVideosPanel();loadVideos()
+  });
+ };
+ search.oninput=()=>renderRows(search.value);
+ renderRows();
+}
 
 async function loadAlbums(){
  if(!db){state.albums=[];renderAlbums();return}
@@ -591,8 +629,13 @@ function renderAlbums(){
 function openAlbum(id){
  const album=(state.albums||[]).find(a=>String(a.id)===String(id));if(!album)return;
  if(album.is_exclusive&&!hasPremium()){membershipPanel();toast("Album ini khusus membership aktif.");return}
- const videos=album.videos||[];
- modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join("")+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
+ const videos=album.videos||[],hasAccess=hasPremium();
+ modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>{
+  const locked=Boolean(v.is_exclusive)&&!hasAccess;
+  const accessIcon=v.is_exclusive?(locked?'🔒':'🔓'):'▶';
+  const accessLabel=v.is_exclusive?(locked?'Video terkunci, membership diperlukan':'Video eksklusif, akses membership aktif'):'Putar video';
+  return '<button type="button" class="album-video-row'+(locked?' is-locked':'')+'" data-album-video="'+esc(v.id)+'" aria-label="'+esc(v.title)+'. '+accessLabel+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span class="album-video-access" title="'+accessLabel+'" aria-label="'+accessLabel+'">'+accessIcon+'</span></button>';
+ }).join('')+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
  $("#albumBackHome").onclick=closeModal;
  document.querySelectorAll("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
 }
