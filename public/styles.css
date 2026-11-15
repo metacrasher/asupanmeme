@@ -685,3 +685,63 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
 .admin-manage-copy small{font-size:11px;line-height:1.5;color:#b9b0be;font-weight:500}
 .admin-manage-arrow{flex:0 0 auto;color:#ff8eae;font-size:21px;font-weight:700}
 @media(min-width:560px){.admin-management-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-manage-albums{grid-column:1/-1}}
+
+
+/* Album picker search: the native [hidden] rule must win over the flex label rule. */
+.album-video-picker [hidden] { display: none !important; }
+
+/* Compact, balanced exclusive-membership gate on phones and desktop. */
+.exclusive-gate-shell {
+  min-height: 100dvh;
+  padding: 16px clamp(14px, 3vw, 26px) 28px;
+  gap: 0;
+}
+.exclusive-gate-toolbar { margin-bottom: clamp(18px, 4vh, 34px); }
+.exclusive-gate-card {
+  width: min(100%, 560px);
+  min-height: 0;
+  padding: clamp(22px, 4vw, 34px) clamp(18px, 4vw, 30px);
+  border-radius: 20px;
+}
+.exclusive-gate-card .lock-animation {
+  width: 68px; height: 68px; border-radius: 19px; font-size: 36px;
+}
+.exclusive-gate-card .lock-animation svg { width: 39px; height: 39px; }
+.exclusive-gate-card .eyebrow { margin: 12px 0 0; font-size: 11px; letter-spacing: 1.7px; }
+.exclusive-gate-card h2 {
+  margin: 20px 0 8px; font-size: clamp(23px, 4vw, 31px);
+  line-height: 1.2; letter-spacing: -.5px;
+}
+.exclusive-gate-card > p:not(.eyebrow) {
+  max-width: 430px; font-size: clamp(13px, 1.8vw, 15px); line-height: 1.65;
+}
+.exclusive-gate-actions {
+  width: min(100%, 430px); gap: 10px; margin: 16px 0 8px;
+}
+.exclusive-gate-actions .btn {
+  width: 100%; min-width: 0; min-height: 50px; padding: 12px 18px;
+  border-radius: 12px; font-size: 15px; line-height: 1.25;
+}
+.exclusive-login-link { width: 100%; min-height: 46px; padding: 10px 16px; font-size: 13px; }
+.exclusive-gate-title {
+  max-width: 560px; margin: 22px 0 6px; font-size: clamp(19px, 3vw, 24px); line-height: 1.3;
+}
+.exclusive-gate-shell > .player-hint {
+  max-width: 560px; margin: 4px 0 0; text-align: center; font-size: 13px; line-height: 1.6;
+}
+.exclusive-gate-shell .exclusive-channel-link {
+  min-height: 46px; margin-top: 16px; padding: 10px 18px; font-size: 13px;
+}
+@media (max-width: 600px) {
+  .exclusive-gate-shell { min-height: 100dvh; padding: 12px 16px 24px; }
+  .exclusive-gate-toolbar { margin-bottom: 22px; }
+  .exclusive-gate-card { width: 100%; min-height: 0; padding: 24px 18px; border-radius: 17px; }
+  .exclusive-gate-card .lock-animation { width: 62px; height: 62px; }
+  .exclusive-gate-card h2 { margin-top: 17px; font-size: clamp(22px, 6vw, 27px); }
+  .exclusive-gate-actions { width: 100%; max-width: 330px; gap: 9px; margin-top: 14px; }
+  .exclusive-gate-actions .btn, .exclusive-login-link {
+    width: 100%; max-width: none; min-height: 48px; font-size: 14px;
+  }
+  .exclusive-gate-title { margin-top: 18px; font-size: 20px; }
+  .exclusive-channel-link { width: 100%; max-width: 330px; min-height: 46px; }
+}

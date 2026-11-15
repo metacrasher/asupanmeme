@@ -571,10 +571,14 @@ async function loadAlbums(){
   const items=await db.from("album_videos").select("album_id,video_id,sort_order,videos(id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider)").in("album_id",albums.map(a=>a.id)).order("sort_order");
   if(items.error)throw items.error;
   const loaded=albums.map(a=>Object.assign({},a,{videos:(items.data||[]).filter(x=>x.album_id===a.id&&x.videos).map(x=>x.videos)}));
-  // Keep empty exclusive albums visible as locked previews for visitors.
-  // Empty regular albums are omitted until an admin adds at least one video.
-  state.albums=loaded.filter(a=>a.is_exclusive||(a.videos||[]).length>0);
- }catch(error){state.albums=[];if(error?.code!=="42P01"&&error?.code!=="PGRST205")console.error("Album load:",error)}
+  // Keep every published album visible, including an album that currently has
+  // no readable videos (for example, a member-only album viewed by a guest).
+  // Hiding empty albums made successfully-created collections appear missing.
+  state.albums=loaded;
+ }catch(error){
+  // Preserve the last successfully loaded album list on transient/RLS errors.
+  if(error?.code!=="42P01"&&error?.code!=="PGRST205")console.error("Album load:",error);
+ }
  renderAlbums();
 }
 function renderAlbums(){
@@ -592,7 +596,7 @@ function openAlbum(id){
  const album=(state.albums||[]).find(a=>String(a.id)===String(id));if(!album)return;
  if(album.is_exclusive&&!hasPremium()){membershipPanel();toast("Album ini khusus membership aktif.");return}
  const videos=album.videos||[];
- modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join("")+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
+ modal('<p class="eyebrow">ASUPANMEME ALBUM</p><h2 id="modalTitle">'+esc(album.title)+'</h2>'+(album.description?'<p class="muted">'+esc(album.description)+'</p>':'')+'<div class="album-video-list">'+(videos.length?videos.map((v,i)=>'<button type="button" class="album-video-row" data-album-video="'+esc(v.id)+'"><span class="album-video-number">'+(i+1)+'</span>'+(v.thumbnail_url?'<img src="'+esc(v.thumbnail_url)+'" alt="">':'<span class="album-video-thumb">A.</span>')+'<span class="album-video-text"><b>'+esc(v.title)+'</b><small>'+Number(v.views||0).toLocaleString("id-ID")+' views</small></span><span>▶</span></button>').join(""):'<p class="album-empty">Video dalam album ini belum tersedia untuk ditampilkan.</p>')+'</div><button class="btn btn-ghost" id="albumBackHome" type="button">Kembali</button>');
  $("#albumBackHome").onclick=closeModal;
  document.querySelectorAll("[data-album-video]").forEach(b=>b.onclick=()=>openVideo(b.dataset.albumVideo));
 }
