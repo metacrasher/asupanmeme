@@ -745,3 +745,12 @@ html,body{height:auto!important;min-height:100%;max-width:100%;overflow-x:hidden
   .exclusive-gate-title { margin-top: 18px; font-size: 20px; }
   .exclusive-channel-link { width: 100%; max-width: 330px; min-height: 46px; }
 }
+
+
+/* Floating WhatsApp contact — draggable on desktop and touch devices */
+.whatsapp-float{position:fixed;right:22px;bottom:105px;z-index:999;display:flex;align-items:center;gap:9px;padding:7px 12px 7px 7px;border:1px solid #ffffff32;border-radius:999px;background:linear-gradient(135deg,#075e3b,#0b8f55);color:#fff;text-decoration:none;box-shadow:0 9px 28px #0008,0 0 22px #25d36630;touch-action:none;user-select:none;cursor:grab;transition:box-shadow .22s,filter .22s}
+.whatsapp-float:hover{filter:brightness(1.12);box-shadow:0 12px 34px #0009,0 0 26px #25d36665}.whatsapp-float:active{cursor:grabbing}
+.whatsapp-float-icon{width:46px;height:46px;flex:0 0 46px;border-radius:50%;display:grid;place-items:center;background:#25d366;color:#fff;border:2px solid #b9ffd0;box-shadow:0 3px 12px #001c0d80,inset 0 0 0 1px #ffffff35}
+.whatsapp-float-icon svg{width:29px;height:29px;display:block}.whatsapp-float-name{font:800 13px "Space Grotesk",sans-serif;letter-spacing:.25px;white-space:nowrap;text-shadow:0 0 7px #fff9,0 0 13px #25d366;animation:csSerinBlink 1.25s ease-in-out infinite alternate}
+@keyframes csSerinBlink{0%{opacity:.58;text-shadow:0 0 3px #fff,0 0 7px #25d366}100%{opacity:1;text-shadow:0 0 5px #fff,0 0 15px #25d366,0 0 23px #25d366}}
+@media(max-width:600px){.whatsapp-float{right:13px;bottom:82px;gap:7px;padding:6px 10px 6px 6px}.whatsapp-float-icon{width:42px;height:42px;flex-basis:42px}.whatsapp-float-icon svg{width:26px;height:26px}.whatsapp-float-name{font-size:12px}}
