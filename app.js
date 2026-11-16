@@ -59,6 +59,32 @@ window.addEventListener("popstate",()=>{
 });
 const money = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Draggable floating WhatsApp contact button.
+const whatsappFloat=$("#whatsappFloat");
+if(whatsappFloat){
+ let dragging=false,moved=false,startX=0,startY=0,originX=0,originY=0;
+ whatsappFloat.addEventListener("pointerdown",event=>{
+  if(event.button!==0&&event.pointerType==="mouse")return;
+  const rect=whatsappFloat.getBoundingClientRect();
+  dragging=true;moved=false;startX=event.clientX;startY=event.clientY;originX=rect.left;originY=rect.top;
+  whatsappFloat.style.left=originX+"px";whatsappFloat.style.top=originY+"px";whatsappFloat.style.right="auto";whatsappFloat.style.bottom="auto";
+  whatsappFloat.setPointerCapture(event.pointerId);
+ });
+ whatsappFloat.addEventListener("pointermove",event=>{
+  if(!dragging)return;
+  const dx=event.clientX-startX,dy=event.clientY-startY;
+  if(Math.abs(dx)+Math.abs(dy)>5)moved=true;
+  if(!moved)return;
+  const maxX=Math.max(0,window.innerWidth-whatsappFloat.offsetWidth),maxY=Math.max(0,window.innerHeight-whatsappFloat.offsetHeight);
+  whatsappFloat.style.left=Math.min(maxX,Math.max(0,originX+dx))+"px";
+  whatsappFloat.style.top=Math.min(maxY,Math.max(0,originY+dy))+"px";
+ });
+ const finishDrag=()=>{dragging=false;if(moved)whatsappFloat.dataset.dragged="yes"};
+ whatsappFloat.addEventListener("pointerup",finishDrag);
+ whatsappFloat.addEventListener("pointercancel",finishDrag);
+ whatsappFloat.addEventListener("click",event=>{if(whatsappFloat.dataset.dragged==="yes"){event.preventDefault();delete whatsappFloat.dataset.dragged}},true);
+ window.addEventListener("resize",()=>{if(!whatsappFloat.style.left)return;const rect=whatsappFloat.getBoundingClientRect();whatsappFloat.style.left=Math.min(Math.max(0,window.innerWidth-whatsappFloat.offsetWidth),rect.left)+"px";whatsappFloat.style.top=Math.min(Math.max(0,window.innerHeight-whatsappFloat.offsetHeight),rect.top)+"px"});
+}
 const toast = msg => {const region=$("#toastRegion");if(!region)return;const el=document.createElement("div");el.className="toast";el.setAttribute("role","status");el.textContent=msg;region.append(el);requestAnimationFrame(()=>el.classList.add("toast-visible"));setTimeout(()=>{el.classList.remove("toast-visible");setTimeout(()=>el.remove(),220)},4200)};
 const modal = html => {$("#modalBackdrop").classList.remove("player-mode");$("#mainModal").classList.remove("player-modal","auth-modal");$("#modalContent").innerHTML=html;$("#modalBackdrop").classList.remove("hidden");$("#modalBackdrop").setAttribute("aria-hidden","false")};
 const closeModal = (fromHistory=false) => {
