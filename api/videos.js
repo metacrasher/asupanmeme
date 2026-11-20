@@ -1,6 +1,6 @@
 import { getPool } from "../lib/db.js";
 
-const MODERATION_BLOCKLIST = /\\b(?:anak|bocil|smp|sma|sekolah|pelajar|remaja|adek|adik|teen(?:ager)?|underage|minor|child(?:ren)?|forced|rape[d]?|raping|drugged|unconscious|dipaksa|memaksa|paksa|perkosa|diperkosa|pemerkosaan|obat\\s+tidur|tidak\\s+sadar|tanpa\\s+persetujuan|tanpa\\s+izin|eksploitasi)\\b/i;
+const MODERATION_BLOCKLIST = /\b(?:anak|bocil|smp|sma|sekolah|pelajar|remaja|adek|adik|teen(?:ager)?|underage|minor|child(?:ren)?|forced|rape[d]?|raping|drugged|unconscious|dipaksa|memaksa|paksa|perkosa|diperkosa|pemerkosaan|obat\s+tidur|tidak\s+sadar|tanpa\s+persetujuan|tanpa\s+izin|eksploitasi)\b/i;
 
 function isEligibleForPublicListing(video) {
   // Metadata screening is a conservative first barrier, not proof that the
@@ -17,12 +17,12 @@ export default async function handler(req, res) {
 
   try {
     const { rows } = await getPool().query(
-      `SELECT id, title, description, thumbnail_url, duration, views,
+      \`SELECT id, title, description, thumbnail_url, duration, views,
               created_at, is_exclusive, video_url, storage_path, storage_provider
        FROM public.videos
        WHERE published = TRUE
        ORDER BY created_at DESC
-       LIMIT 500`
+       LIMIT 500\`
     );
 
     const videos = rows.filter(isEligibleForPublicListing);
