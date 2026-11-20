@@ -164,23 +164,21 @@ async function renderMembershipHero(){
 async function loadVideos(){
  if(!db){state.videos=demoVideos;renderVideos();return}
  try{
-  // Use the active session: anon visitors see public videos, while signed-in
-  // members/admins are evaluated by the matching Supabase RLS policies.
-  const runQuery=async()=>{
-   let result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path,storage_provider").eq("published",true).order("created_at",{ascending:false});
-   if(result.error?.code==="42703")result=await db.from("videos").select("id,title,description,thumbnail_url,duration,views,created_at,is_exclusive,video_url,storage_path").eq("published",true).order("created_at",{ascending:false});
-   if(result.error)throw result.error;
-   return result.data||[];
-  };
-  let timeoutId;
-  const timeout=new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error("Waktu tunggu katalog habis. Periksa koneksi Supabase dan kebijakan RLS.")),15000)});
-  try{state.videos=await Promise.race([runQuery(),timeout]);}
+  // Public catalog reads go through Vercel's PostgreSQL pooler endpoint.
+  // The endpoint returns only rows explicitly approved for publication.
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),15000);
+  let response;
+  try{response=await fetch("/api/videos",{method:"GET",headers:{Accept:"application/json"},cache:"no-store",signal:controller.signal})}
   finally{clearTimeout(timeoutId)}
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error||"Katalog belum dapat dimuat.");
+  if(!Array.isArray(payload.videos))throw new Error("Format data katalog tidak valid.");
+  state.videos=payload.videos;
   state.catalogError=null;
  }catch(error){
   console.error("ASUPANMEME loadVideos:",error);
-  state.catalogError=error?.message||"Periksa koneksi dan kebijakan database.";
-  // Keep any previously loaded catalog instead of making existing videos vanish.
+  state.catalogError=error?.name==="AbortError"?"Waktu tunggu katalog habis.":(error?.message||"Periksa koneksi database.");
   toast("Katalog gagal dimuat: "+state.catalogError);
  }finally{renderVideos()}
 }
